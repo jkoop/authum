@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForwardAuthController;
 use App\Http\Controllers\LoginController;
+use App\Http\Middleware\EnforceParentSessionLoggedInUser;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,9 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::get('logout', [LoginController::class, 'logout']);
 });
 
-Route::get('_authum/forward-auth', [ForwardAuthController::class, 'handle']);
+Route::get('_authum/forward-auth', [ForwardAuthController::class, 'handle'])->middleware(EnforceParentSessionLoggedInUser::class);
 
-Route::middleware('guest')->group(function () {
-    Route::get('login', [LoginController::class, 'view'])->name('login');
-    Route::post('login', [LoginController::class, 'login']);
-});
+Route::get('login', [LoginController::class, 'view'])->name('login');
+Route::post('login', [LoginController::class, 'login'])->middleware('guest');

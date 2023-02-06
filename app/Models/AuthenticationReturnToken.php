@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class AuthenticationReturnToken extends Model {
     protected $dateFormat = 'U';
+    public $incrementing = false;
     protected $fillable = [
-        'user_id',
+        'id',
+        'parent_session_id',
         'forward_to',
     ];
 }

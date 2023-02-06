@@ -6,23 +6,22 @@ use App\Models\AuthenticationReturnToken;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 
 final class LoginController extends Controller {
     public function view(Request $request) {
-        $request->validate([
-            'from' => 'nullable|url',
-        ]);
-
-        return view('pages.login');
+        if (Auth::check()) {
+            return $this->redirectWithToken($request);
+        } else {
+            return view('pages.login');
+        }
     }
 
     public function login(Request $request) {
         $request->validate([
             'username' => 'required|string|max:255',
             'password' => 'required',
-            'from' => 'nullable|url',
         ]);
 
         $user = User::where('username', $request->username)->orWhereHas('emailAddresses', function ($query) use ($request) {
@@ -36,20 +35,29 @@ final class LoginController extends Controller {
         Auth::login($user);
 
         if ($request->has('from')) {
-            $authorizationReturnToken = AuthenticationReturnToken::create([
-                'user_id' => $user->id,
-                'forward_to' => substr($request->from, 0, 4095),
-            ]);
-
-            $url = parse_url($request->from);
-            $goto = $url['scheme'] . '://' . $url['host'] . ':' . $url['port'] . '/_authum/from-login?' . http_build_query([
-                'token' => Crypt::encryptString($authorizationReturnToken->id),
-            ]);
-
-            return redirect($goto);
+            return $this->redirectWithToken($request);
         } else {
             return redirect("/");
         }
+    }
+
+    private function redirectWithToken(Request $request) {
+        $request->validate([
+            'from' => 'url',
+        ]);
+
+        $authorizationReturnToken = AuthenticationReturnToken::create([
+            'id' => bin2hex(random_bytes(96)),
+            'parent_session_id' => Session::getId(),
+            'forward_to' => substr($request->from, 0, 4095),
+        ]);
+
+        $url = parse_url($request->from);
+        $goto = $url['scheme'] . '://' . $url['host'] . ':' . $url['port'] . '/_authum/from-login?' . http_build_query([
+            'token' => $authorizationReturnToken->id,
+        ]);
+
+        return redirect($goto);
     }
 
     public function logout(Request $request) {

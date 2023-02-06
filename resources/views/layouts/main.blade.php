@@ -1,21 +1,6 @@
-<!doctype html>
-<html lang="en_CA">
-
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title') - {{ config('app.name') }}</title>
-</head>
-
-<body>
-    @if ($errors->count())
-        Errors:<br>
-        <ul id="errors">
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    @endif
+@extends('layouts.html')
+@section('actual-content')
+    @include('blocks.messages')
 
     <article id="content">
         <h1>@yield('title')</h1>
@@ -32,6 +17,4 @@
 
         @dump(Session::getId())
     @endauth
-</body>
-
-</html>
+@endsection

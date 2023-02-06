@@ -1,20 +1,21 @@
 <?php
 
-declare(strict_types=1);
-
+use App\Models\Service;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration {
+return new class extends Migration {
     /**
      * Run the migrations.
      *
      * @return void
      */
-    public function up(): void {
-        Schema::create('rules', function (Blueprint $table): void {
+    public function up() {
+        Schema::create('domain_names', function (Blueprint $table) {
             $table->id();
+            $table->string('domain_name')->unique();
+            $table->foreignIdFor(Service::class)->references('id')->on('services')->onDelete('cascade');
             $table->bigInteger('created_at');
             $table->bigInteger('updated_at');
         });
@@ -25,7 +26,7 @@ return new class() extends Migration {
      *
      * @return void
      */
-    public function down(): void {
-        Schema::dropIfExists('rules');
+    public function down() {
+        Schema::dropIfExists('domain_names');
     }
 };

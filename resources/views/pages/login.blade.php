@@ -1,4 +1,4 @@
-@extends('layouts.main')
+@extends('layouts.card')
 @section('title', 'Login')
 @section('content')
 
@@ -12,7 +12,7 @@
             Password<br>
             <input name="password" type="password" required />
         </label><br>
-        <button type="submit">Log in or register</button>
+        <button type="submit">Log in</button>
     </form>
 
 @endsection

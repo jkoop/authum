@@ -15,6 +15,8 @@ return new class() extends Migration {
     public function up(): void {
         Schema::create('services', function (Blueprint $table): void {
             $table->id();
+            $table->string('name')->unique();
+            $table->string('logout_path')->default('logout')->comment('no leading slash');
             $table->bigInteger('created_at');
             $table->bigInteger('updated_at');
         });

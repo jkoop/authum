@@ -26,7 +26,7 @@ services:
             - mailpit
         labels:
             - traefik.enable=true
-            - traefik.http.routers.laravel.rule=Host(`laravel.localhost`)
+            - traefik.http.routers.laravel.rule=(Host(`laravel.localhost`) || Host(`db.laravel.localhost`))
             - traefik.http.services.laravel.loadbalancer.server.port=80
             - traefik.http.routers.laravel.entrypoints=web
 
@@ -85,6 +85,8 @@ services:
             - traefik.http.routers.whoami.entrypoints=web
             - traefik.http.middlewares.authum.forwardAuth.address=http://laravel.test:80/_authum/forward-auth
             - traefik.http.routers.whoami.middlewares=authum
+        networks:
+            - sail
 
 networks:
     sail:
