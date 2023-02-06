@@ -2,11 +2,11 @@
 @section('actual-content')
     @include('blocks.messages')
 
-    <article id="content">
+    <div id="content">
         <h1>@yield('title')</h1>
 
         @yield('content')
-    </article>
+    </div>
 
     @auth
         <hr>
@@ -14,7 +14,5 @@
             Logged in as {{ Auth::user()->name }}
             <a href="/logout" style="float:right">Logout</a>
         </footer>
-
-        @dump(Session::getId())
     @endauth
 @endsection

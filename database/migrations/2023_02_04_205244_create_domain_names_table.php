@@ -14,8 +14,8 @@ return new class extends Migration {
     public function up() {
         Schema::create('domain_names', function (Blueprint $table) {
             $table->id();
-            $table->string('domain_name')->unique();
             $table->foreignIdFor(Service::class)->references('id')->on('services')->onDelete('cascade');
+            $table->string('domain_name')->unique();
             $table->bigInteger('created_at');
             $table->bigInteger('updated_at');
         });

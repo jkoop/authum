@@ -34,7 +34,7 @@
         }
     </style>
 
-    <article id="content">
+    <div id="content">
         <h1>@yield('title')</h1>
 
         @include('blocks.messages')
@@ -47,8 +47,6 @@
                 Logged in as {{ Auth::user()->name }}
                 <a href="/logout" style="float:right">Logout</a>
             </footer>
-
-            @dump(Session::getId())
         @endauth
-    </article>
+    </div>
 @endsection

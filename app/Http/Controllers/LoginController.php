@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\Session;
 final class LoginController extends Controller {
     public function view(Request $request) {
         if (Auth::check()) {
-            return $this->redirectWithToken($request);
+            if ($request->has('from')) {
+                return $this->redirectWithToken($request);
+            } else {
+                redirect('/');
+            }
         } else {
             return view('pages.login');
         }

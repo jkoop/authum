@@ -16,4 +16,8 @@ final class Service extends Model {
     public function domainNames(): HasMany {
         return $this->hasMany(DomainName::class);
     }
+
+    public function getEntrypointAttribute(): string {
+        return 'http://' . $this->domainNames->first()->domain_name;
+    }
 }

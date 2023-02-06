@@ -4,10 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\AuthenticationReturnToken;
 use App\Models\Service;
-use App\Models\Session as ModelsSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session;
 
 final class ForwardAuthController extends Controller {
     private string $method;
@@ -41,10 +39,7 @@ final class ForwardAuthController extends Controller {
 
     public function handle(Request $request) {
         if ($this->path == $this->service->logout_path) {
-            ModelsSession::where('id', session('parentSessionId'))->delete();
-            // Auth::logout();
-            dd('done');
-            return redirect("{$this->proto}://{$this->host}:{$this->port}/"); // root of requested site
+            return redirect(config('app.url') . '/logout');
         }
 
         if ($this->path == '_authum/from-login') {
@@ -62,7 +57,6 @@ final class ForwardAuthController extends Controller {
                 abort(403);
             }
         } else {
-            // dd("NOT LOGGED IN", Session::getId());
             return redirect(config('app.url') . '/login?' . http_build_query([
                 'from' => "{$this->proto}://{$this->host}:{$this->port}/" . ltrim($this->uri, "/"), // includes query string
             ]));
@@ -87,7 +81,6 @@ final class ForwardAuthController extends Controller {
      * @return true|never `true` if permitted, `false` if not
      */
     private function isUserPermitted(): bool {
-        dd(Session::getId(), session('parentSessionId'));
         return true;
     }
 }
