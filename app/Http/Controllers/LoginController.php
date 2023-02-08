@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\Crockford32;
 use App\Models\AuthenticationReturnToken;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
 
 final class LoginController extends Controller {
     public function view(Request $request) {
@@ -51,9 +53,10 @@ final class LoginController extends Controller {
         ]);
 
         $authorizationReturnToken = AuthenticationReturnToken::create([
-            'id' => bin2hex(random_bytes(96)),
+            'id' => strtolower(Str::ulid() . Crockford32::encode(random_bytes(10))),
             'parent_session_id' => Session::getId(),
             'forward_to' => substr($request->from, 0, 4095),
+            'expires_at' => now()->addMinute()->timestamp, // I actually think one minute might be too long
         ]);
 
         $url = parse_url($request->from);

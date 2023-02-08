@@ -30,7 +30,7 @@ class PasswordResetController extends Controller {
     }
 
     public function viewResetForm(string $token) {
-        PasswordResetToken::where('updated_at', '<', now()->timestamp - 60 * 10)->delete();
+        PasswordResetToken::where('expires_at', '<', now()->timestamp)->delete();
 
         $token = PasswordResetToken::find($token);
         if (!$token) {
@@ -43,7 +43,7 @@ class PasswordResetController extends Controller {
     }
 
     public function submitResetForm(string $token, Request $request) {
-        PasswordResetToken::where('updated_at', '<', now()->timestamp - 60 * 10)->delete();
+        PasswordResetToken::where('expires_at', '<', now()->timestamp)->delete();
 
         $token = PasswordResetToken::find($token);
         if (!$token) {

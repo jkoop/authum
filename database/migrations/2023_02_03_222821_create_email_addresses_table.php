@@ -1,8 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
-use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -15,11 +12,12 @@ return new class() extends Migration {
      */
     public function up(): void {
         Schema::create('email_addresses', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignIdFor(User::class)->references('id')->on('users')->onDelete('cascade');
-            $table->string('email_address')->unique();
+            $table->string('email_address')->primary();
+            $table->ulid('user_id')->index();
             $table->bigInteger('created_at');
             $table->bigInteger('updated_at');
+
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

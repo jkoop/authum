@@ -2,13 +2,14 @@
 
 namespace App\Mail;
 
+use App\Helpers\Crockford32;
 use App\Models\PasswordResetToken;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Str;
 
 class PasswordReset extends Mailable {
     use Queueable, SerializesModels;
@@ -22,8 +23,9 @@ class PasswordReset extends Mailable {
      */
     public function __construct(public User $user) {
         $resetToken = PasswordResetToken::create([
-            'id' => bin2hex(random_bytes(96)),
+            'id' => strtolower(Str::ulid() . Crockford32::encode(random_bytes(10))),
             'user_id' => $user->id,
+            'expires_at' => now()->addMinutes(10)->timestamp,
         ]);
 
         $this->url = config('app.url') . '/password-reset/' . $resetToken->id;

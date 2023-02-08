@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,10 +12,11 @@ return new class extends Migration {
      */
     public function up() {
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('id')->primary();
-            $table->foreignIdFor(User::class)->references('id')->on('users')->onDelete('cascade');
-            $table->bigInteger('created_at');
-            $table->bigInteger('updated_at');
+            $table->char('id', 42)->primary();
+            $table->ulid('user_id')->index();
+            $table->bigInteger('expires_at');
+
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

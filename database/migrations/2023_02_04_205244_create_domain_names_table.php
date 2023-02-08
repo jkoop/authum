@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Service;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,11 +12,12 @@ return new class extends Migration {
      */
     public function up() {
         Schema::create('domain_names', function (Blueprint $table) {
-            $table->id();
-            $table->foreignIdFor(Service::class)->references('id')->on('services')->onDelete('cascade');
-            $table->string('domain_name')->unique();
+            $table->string('domain_name')->primary();
+            $table->ulid('service_id')->index();
             $table->bigInteger('created_at');
             $table->bigInteger('updated_at');
+
+            $table->foreign('service_id')->references('id')->on('services')->onDelete('cascade');
         });
     }
 

@@ -12,14 +12,10 @@ return new class extends Migration {
      */
     public function up() {
         Schema::create('authentication_return_tokens', function (Blueprint $table) {
-            $table->string('id')->primary();
-            $table->string('parent_session_id');
+            $table->char('id', 42)->primary();
+            $table->string('parent_session_id'); // don't add a foreign key constraint here
             $table->string('forward_to', 8191);
-            $table->bigInteger('created_at');
-            $table->bigInteger('updated_at');
-
-            // commented out because the session may not be written yet
-            // $table->foreign('parent_session_id')->references('id')->on('sessions')->onDelete('cascade');
+            $table->bigInteger('expires_at');
         });
     }
 

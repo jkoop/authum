@@ -64,7 +64,7 @@ final class ForwardAuthController extends Controller {
     }
 
     private function attemptLogin() {
-        AuthenticationReturnToken::where('updated_at', '<', now()->timestamp - 60)->delete(); // I actually think one minute might be too long
+        AuthenticationReturnToken::where('expires_at', '<', now()->timestamp)->delete();
 
         $token = AuthenticationReturnToken::find($this->query['token'] ?? "");
         if (!$token) {

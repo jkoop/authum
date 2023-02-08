@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class EmailAddress extends Model {
     protected $dateFormat = 'U';
+    public $incrementing = false;
+    protected $primaryKey = 'email_address';
     protected $fillable = [
-        'user_id',
         'email_address',
+        'user_id',
     ];
 }
