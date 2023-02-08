@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class Service extends Model {
+    use HasFactory;
+
     protected $dateFormat = 'U';
 
     public $fillable = [
@@ -18,6 +21,6 @@ final class Service extends Model {
     }
 
     public function getEntrypointAttribute(): string {
-        return 'http://' . $this->domainNames->first()->domain_name;
+        return 'http://' . $this->domainNames->first()?->domain_name;
     }
 }

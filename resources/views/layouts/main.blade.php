@@ -8,11 +8,9 @@
         @yield('content')
     </div>
 
-    @auth
-        <hr>
-        <footer>
-            Logged in as {{ Auth::user()->name }}
-            <a href="/logout" style="float:right">Logout</a>
-        </footer>
-    @endauth
+    <hr>
+    <footer>
+        Logged in as {{ Auth::user()?->name ?? Str::of('<i>nobody</i>')->toHtmlString() }}
+        @auth <a href="/logout" style="float:right">Logout</a> @endauth
+    </footer>
 @endsection

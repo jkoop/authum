@@ -1,12 +1,28 @@
 @extends('layouts.html')
 @section('actual-content')
     <style>
-        body {
+        #cardContainer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            min-height: 100%;
             display: flex;
-            margin: 0.5rem;
-            background-color: grey;
+            padding: 0.5rem;
             justify-content: space-around;
             align-items: flex-start;
+            box-sizing: border-box;
+            backdrop-filter: blur(0.5rem);
+            background-color: #0008;
+        }
+
+        #backdrop {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
         }
 
         #content {
@@ -22,9 +38,8 @@
         }
 
         @media screen and (min-width: 600px) {
-            body {
-                height: 100vh;
-                margin: 0;
+            #cardContainer {
+                padding: 0;
                 align-items: center;
             }
 
@@ -34,19 +49,25 @@
         }
     </style>
 
-    <div id="content">
-        <h1>@yield('title')</h1>
+    <div id="backdrop">
+        @yield('backdrop')
+    </div>
 
-        @include('blocks.messages')
+    <div id="cardContainer">
+        <div id="content">
+            <h1>@yield('title')</h1>
 
-        @yield('content')
+            @include('blocks.messages')
 
-        @auth
-            <hr>
-            <footer>
-                Logged in as {{ Auth::user()->name }}
-                <a href="/logout" style="float:right">Logout</a>
-            </footer>
-        @endauth
+            @yield('content')
+
+            @auth
+                <hr>
+                <footer>
+                    Logged in as {{ Auth::user()->name }}
+                    <a href="/logout" style="float:right">Logout</a>
+                </footer>
+            @endauth
+        </div>
     </div>
 @endsection

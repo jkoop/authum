@@ -15,7 +15,7 @@ final class LoginController extends Controller {
             if ($request->has('from')) {
                 return $this->redirectWithToken($request);
             } else {
-                redirect('/');
+                return redirect('/');
             }
         } else {
             return view('pages.login');

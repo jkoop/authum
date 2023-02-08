@@ -24,5 +24,7 @@ Route::middleware('auth')->group(function () {
 
 Route::get('_authum/forward-auth', [ForwardAuthController::class, 'handle'])->middleware(EnforceParentSessionLoggedInUser::class);
 
+Route::get('/dashboard/fake', [DashboardController::class, 'viewFake']);
+
 Route::get('login', [LoginController::class, 'view'])->name('login');
 Route::post('login', [LoginController::class, 'login'])->middleware('guest');
