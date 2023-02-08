@@ -22,4 +22,6 @@
         <button type="submit">Log in</button>
     </form>
 
+    <p><a href="/password-reset">Forgot password</a></p>
+
 @endsection

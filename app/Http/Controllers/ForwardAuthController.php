@@ -68,7 +68,7 @@ final class ForwardAuthController extends Controller {
 
         $token = AuthenticationReturnToken::find($this->query['token'] ?? "");
         if (!$token) {
-            return response(view('pages.bad-token'), 400);
+            return response(view('pages.token.bad'), 400);
         }
 
         session()->put('parentSessionId', $token->parent_session_id);
