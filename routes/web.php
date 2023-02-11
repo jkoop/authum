@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForwardAuthController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\EnforceParentSessionLoggedInUser;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'view']);
+
+    Route::get('profile', [ProfileController::class, 'view']);
+    Route::post('profile/change-password', [ProfileController::class, 'changePassword']);
+
     Route::get('logout', [LoginController::class, 'logout']);
 });
 
