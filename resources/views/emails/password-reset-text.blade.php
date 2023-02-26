@@ -1,7 +1,7 @@
-Hi {{ $user->name }},
+Hi {!! $user->name !!},
 
 You requested a link to reset your password. Here you go (it expires in ten minutes):
 
-{{ $url }}
+{!! $url !!}
 
--- {{ config('app.name') }}
+-- {!! config('app.name') !!}

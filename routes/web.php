@@ -23,16 +23,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'view']);
 
     Route::get('profile', [ProfileController::class, 'view']);
+    Route::post('profile', [ProfileController::class, 'updateGeneral']);
     Route::post('profile/change-password', [ProfileController::class, 'changePassword']);
+    Route::post('profile/add-email', [ProfileController::class, 'sendVerifyEmailEmail'])->middleware('throttle');
+    Route::get('add-email/{token}', [ProfileController::class, 'verifyEmail'])->middleware('throttle');
 
     Route::get('logout', [LoginController::class, 'logout']);
 });
 
 Route::middleware('guest')->group(function () {
     Route::view('password-reset', 'pages.password.forgot');
-    Route::post('password-reset', [PasswordResetController::class, 'submitEmailForm']);
+    Route::post('password-reset', [PasswordResetController::class, 'submitEmailForm'])->middleware('throttle');
     Route::get('password-reset/{token}', [PasswordResetController::class, 'viewResetForm']);
-    Route::post('password-reset/{token}', [PasswordResetController::class, 'submitResetForm']);
+    Route::post('password-reset/{token}', [PasswordResetController::class, 'submitResetForm'])->middleware('throttle');
 });
 
 Route::get('_authum/forward-auth', [ForwardAuthController::class, 'handle'])->middleware(EnforceParentSessionLoggedInUser::class);
@@ -40,4 +43,4 @@ Route::get('_authum/forward-auth', [ForwardAuthController::class, 'handle'])->mi
 Route::get('dashboard/fake', [DashboardController::class, 'viewFake']);
 
 Route::get('login', [LoginController::class, 'view'])->name('login');
-Route::post('login', [LoginController::class, 'login'])->middleware('guest');
+Route::post('login', [LoginController::class, 'login'])->middleware(['guest', 'throttle']);
