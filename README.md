@@ -3,8 +3,8 @@
 -   [ ] Users can register
 -   [x] Users can change their passwords
 -   [x] Users can reset their passwords
--   [ ] Users can add email addresses
--   [ ] Pretty UI
+-   [x] Users can add email addresses
+-   [x] Pretty UI
     -   [ ] Favicon
 -   [ ] Admins can CRUD users
 -   [ ] Admins can CRUD services

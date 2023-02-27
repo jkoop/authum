@@ -1,23 +1,24 @@
 @extends('layouts.html')
 @section('actual-content')
-    <div id="content">
+    <nav>
+        <a href="/">
+            <h1>Authum</h1>
+        </a>
+        <a href="/">Home</a>
+        <a href="/profile" class="ml-auto">Profile</a>
+        @auth <a href="/logout">Logout</a> @endauth
+    </nav>
+
+    <article>
         <h1>@yield('title')</h1>
 
         @include('blocks.messages')
 
-        <nav>
-            <ul>
-                <li><a href="/">Home</a></li>
-                <li><a href="/profile">Profile</a></li>
-                @auth <li><a href="/logout">Logout</a></li> @endauth
-            </ul>
-        </nav>
-
         @yield('content')
-    </div>
+    </article>
 
-    <hr>
     <footer>
-        Logged in as {{ Auth::user()?->name ?? Str::of('<i>nobody</i>')->toHtmlString() }}
+        <div>Logged in as {{ Auth::user()?->name ?? Str::of('<i>nobody</i>')->toHtmlString() }}</div>
+        <address class="ml-auto"><a href="https://github.com/jkoop/authum" target="_blank">Authum GitHub</a></address>
     </footer>
 @endsection
