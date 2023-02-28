@@ -13,16 +13,7 @@ use Illuminate\Support\Facades\Mail;
 class ProfileController extends Controller {
     public function view() {
         $user = Auth::user();
-        $emailAddresses = $user->emailAddresses->sortBy(function ($emailAddresses) {
-            $address = explode('@', $emailAddresses->email_address);
-            $address = array_reverse($address);
-            $address = array_map(function ($thing) {
-                $thing = explode('.', $thing);
-                $thing = array_reverse($thing);
-                return implode('.', $thing);
-            }, $address);
-            return implode('@', $address);
-        });
+        $emailAddresses = $user->emailAddresses->sortBy('sortValue');
 
         return view('pages.profile', compact('user', 'emailAddresses'));
     }

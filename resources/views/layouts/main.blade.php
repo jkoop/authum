@@ -5,7 +5,13 @@
             <h1>Authum</h1>
         </a>
         <a href="/">Home</a>
+
+        @can('list', App\Models\User::class)
+            <a href="/users">Users</a>
+        @endcan
+
         <a href="/profile" class="ml-auto">Profile</a>
+
         @auth <a href="/logout">Logout</a> @endauth
     </nav>
 

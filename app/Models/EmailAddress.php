@@ -12,4 +12,15 @@ class EmailAddress extends Model {
         'email_address',
         'user_id',
     ];
+
+    public function getSortValueAttribute(): string {
+        $address = explode('@', $this->email_address);
+        $address = array_reverse($address);
+        $address = array_map(function ($thing) {
+            $thing = explode('.', $thing);
+            $thing = array_reverse($thing);
+            return implode('.', $thing);
+        }, $address);
+        return implode('@', $address);
+    }
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\ForwardAuthController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
 use App\Http\Middleware\EnforceParentSessionLoggedInUser;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +31,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('email-address/{emailAddress}', [ProfileController::class, 'deleteEmail'])->middleware('can:delete,emailAddress');
 
     Route::get('logout', [LoginController::class, 'logout']);
+});
+
+Route::middleware('admin')->group(function () {
+    Route::get('users', [UserController::class, 'list']);
 });
 
 Route::middleware('guest')->group(function () {

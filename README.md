@@ -14,3 +14,4 @@
 -   [ ] Server syncing
 -   [ ] Send user details to downstream service; probably with headers or something
 -   [ ] Users have a preferred email address (used for notifications, and to be sent to downstream service)
+-   [ ] Audit log
