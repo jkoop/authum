@@ -26,12 +26,12 @@ final class LoginController extends Controller {
 
     public function login(Request $request) {
         $request->validate([
-            'username' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
             'password' => 'required',
         ]);
 
-        $user = User::where('username', $request->username)->orWhereHas('emailAddresses', function ($query) use ($request) {
-            $query->where('email_address', $request->username);
+        $user = User::whereHas('emailAddresses', function ($query) use ($request) {
+            $query->where('email_address', $request->email);
         })->first();
 
         if ($user === null || !Hash::check($request->password, $user->password)) {

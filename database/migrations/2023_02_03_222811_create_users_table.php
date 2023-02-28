@@ -14,7 +14,6 @@ return new class() extends Migration {
         Schema::create('users', function (Blueprint $table): void {
             $table->ulid('id')->primary();
             $table->string('name');
-            $table->string('username')->nullable()->unique();
             $table->string('password')->nullable();
             $table->boolean('is_admin')->default(false);
             $table->bigInteger('created_at');

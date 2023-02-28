@@ -12,8 +12,8 @@
     <form method="post">
         @csrf
         <label>
-            Username or email<br>
-            <input name="username" maxlength="255" autofocus required />
+            Email address<br>
+            <input name="email" maxlength="255" autofocus required />
         </label><br>
         <label>
             Password<br>
