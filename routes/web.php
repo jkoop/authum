@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'auth.enabled', 'auth.admin'])->group(function () {
     Route::get('users', [UserController::class, 'list']);
     Route::get('user/{user}', [UserController::class, 'view']);
+    Route::post('user/new', [UserController::class, 'create']);
     Route::post('user/{user}', [UserController::class, 'update']);
     Route::post('user/{user}/change-password', [UserController::class, 'changePassword']);
     Route::post('user/{user}/email-address', [UserController::class, 'addEmailAddress']);

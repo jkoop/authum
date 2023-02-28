@@ -1,6 +1,11 @@
 @extends('layouts.main')
 @section('title', 'Users')
 @section('content')
+    <form method="post" action="/user/new">
+        @csrf
+        <button type="submit">Create new user</button>
+    </form>
+
     <table>
         <thead>
             <tr>
@@ -25,7 +30,7 @@
                     <td>{{ $user->is_admin ? 'Yes' : 'No' }}</td>
                     <td>{{ $user->is_enabled ? 'Yes' : 'No' }}</td>
                     <td>{{ $user->created_at->format('Y M d H:i') }}<span
-                            class="opacity-50">{{ $user->created_at->format(':s') }}</span></td>
+                            class="opacity-50">{{ $user->created_at->format(':s e') }}</span></td>
                 </tr>
             @endforeach
         </tbody>

@@ -14,8 +14,14 @@ class UserController extends Controller {
     }
 
     public function view(User $user) {
-
         return view('pages.user.view', compact('user'));
+    }
+
+    public function create() {
+        $user = User::create([
+            'name' => 'NEW_USER',
+        ]);
+        return redirect("/user/$user->id");
     }
 
     public function update(User $user, Request $request) {
