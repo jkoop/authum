@@ -16,6 +16,7 @@ return new class() extends Migration {
             $table->string('name');
             $table->string('password')->nullable();
             $table->boolean('is_admin')->default(false);
+            $table->boolean('is_enabled')->default(false);
             $table->bigInteger('created_at');
             $table->bigInteger('updated_at');
         });

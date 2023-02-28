@@ -6,9 +6,9 @@
         </a>
         <a href="/">Home</a>
 
-        @can('list', App\Models\User::class)
+        @if (Auth::user()?->is_admin)
             <a href="/users">Users</a>
-        @endcan
+        @endif
 
         <a href="/profile" class="ml-auto">Profile</a>
 

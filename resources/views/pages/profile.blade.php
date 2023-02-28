@@ -6,10 +6,7 @@
 
     <form method="post" action="/profile">
         @csrf
-        <label>
-            Name<br>
-            <input name="name" value="{{ old('name') ?? $user->name }}" maxlength="255" />
-        </label><br>
+        <x-string-input label="Name" name="name" :value="$user->name" required /><br>
         <button type="submit">Save</button>
     </form>
 
@@ -57,7 +54,7 @@
         @csrf
         <label>
             New email address<br>
-            <input name="email" type="email" />
+            <input name="email" type="email" required />
         </label><br>
         <button type="submit">Send verification email</button>
     </form>

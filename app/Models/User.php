@@ -15,6 +15,7 @@ class User extends Authenticatable {
         'name',
         'password',
         'is_admin',
+        'is_enabled',
     ];
 
     protected $hidden = [
@@ -23,6 +24,7 @@ class User extends Authenticatable {
 
     public $casts = [
         'is_admin' => 'bool',
+        'is_enabled' => 'bool',
     ];
 
     public function emailAddresses(): HasMany {

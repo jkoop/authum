@@ -7,13 +7,14 @@
                 <th>Name</th>
                 <th>Email Addresses</th>
                 <th>Is Admin?</th>
+                <th>Is Enabled?</th>
                 <th>Created At</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($users as $user)
                 <tr>
-                    <td>{{ $user->name }}</td>
+                    <td><a href="/user/{{ $user->id }}">{{ $user->name }}</a></td>
                     <td>
                         @foreach ($user->emailAddresses->sortBy('sortValue') as $emailAddress)
                             <span class="block">
@@ -22,6 +23,7 @@
                         @endforeach
                     </td>
                     <td>{{ $user->is_admin ? 'Yes' : 'No' }}</td>
+                    <td>{{ $user->is_enabled ? 'Yes' : 'No' }}</td>
                     <td>{{ $user->created_at->format('Y M d H:i') }}<span
                             class="opacity-50">{{ $user->created_at->format(':s') }}</span></td>
                 </tr>

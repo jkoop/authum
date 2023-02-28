@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder {
             'name' => 'Administrator',
             'password' => Hash::make('password'),
             'is_admin' => true,
+            'is_enabled' => true,
         ]);
 
         EmailAddress::create([

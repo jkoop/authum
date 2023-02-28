@@ -26,10 +26,14 @@
         }
 
         #content {
-            padding: 1rem;
+            padding: 0;
             background-color: white;
             width: fit-content;
             max-width: calc(100vw - 3rem);
+        }
+
+        #content>div {
+            padding: 1rem;
         }
 
         #content>*:nth-child(1) {
@@ -50,19 +54,21 @@
     </style>
 
     <div id="backdrop">
-        @yield('backdrop')
+        <iframe src="/dashboard/fake"
+            style="border: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden;"></iframe>
     </div>
 
     <div id="cardContainer">
         <div id="content">
-            <h1>@yield('title')</h1>
+            <div>
+                <h1 class="mt-4">@yield('title')</h1>
 
-            @include('blocks.messages')
+                @include('blocks.messages')
 
-            @yield('content')
+                @yield('content')
+            </div>
 
             @auth
-                <hr>
                 <footer>
                     Logged in as {{ Auth::user()->name }}
                     <a href="/logout" style="float:right">Logout</a>
