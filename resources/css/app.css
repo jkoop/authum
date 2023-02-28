@@ -89,6 +89,11 @@ table td:last-child {
     @apply pr-0;
 }
 
+li form,
+td form {
+    @apply inline-block m-0 p-0;
+}
+
 footer {
     @apply flex flex-wrap gap-4 text-gray-400 bg-black mt-auto p-4;
 }

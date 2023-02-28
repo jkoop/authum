@@ -25,8 +25,9 @@ Route::middleware('auth')->group(function () {
     Route::get('profile', [ProfileController::class, 'view']);
     Route::post('profile', [ProfileController::class, 'updateGeneral']);
     Route::post('profile/change-password', [ProfileController::class, 'changePassword']);
-    Route::post('profile/add-email', [ProfileController::class, 'sendVerifyEmailEmail'])->middleware('throttle');
+    Route::post('email-address', [ProfileController::class, 'sendVerifyEmailEmail'])->middleware('throttle');
     Route::get('add-email/{token}', [ProfileController::class, 'verifyEmail'])->middleware('throttle');
+    Route::delete('email-address/{emailAddress}', [ProfileController::class, 'deleteEmail'])->middleware('can:delete,emailAddress');
 
     Route::get('logout', [LoginController::class, 'logout']);
 });

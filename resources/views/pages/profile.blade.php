@@ -34,13 +34,26 @@
 
     <h2>Email addresses</h2>
 
-    <ul>
-        @foreach ($emailAddresses as $emailAddress)
-            <li>{{ $emailAddress->email_address }}</li>
-        @endforeach
-    </ul>
+    <table>
+        <tbody>
+            @foreach ($emailAddresses as $emailAddress)
+                <tr>
+                    <td>{{ $emailAddress->email_address }}</td>
+                    @if ($user->emailAddresses->count() >= 2)
+                        <td>
+                            <form method="post" action="/email-address/{{ $emailAddress->email_address }}"
+                                onSubmit="return confirm('Really delete ' + {{ json_encode($emailAddress->email_address) }} + '? You won\'t be able to log in with it anymore.')">
+                                @csrf @method('DELETE')
+                                <button type="submit">Delete</button>
+                            </form>
+                        </td>
+                    @endif
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
 
-    <form method="post" action="/profile/add-email">
+    <form method="post" action="/email-address">
         @csrf
         <label>
             New email address<br>

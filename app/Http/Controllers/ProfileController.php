@@ -91,4 +91,9 @@ class ProfileController extends Controller {
 
         return redirect('/profile')->with(['success' => 'Successfully added email address.']);
     }
+
+    public function deleteEmail(EmailAddress $emailAddress) {
+        $emailAddress->delete();
+        return back()->with(['success' => 'Successfully deleted email address']);
+    }
 }
