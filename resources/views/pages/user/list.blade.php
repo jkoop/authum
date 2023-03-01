@@ -31,6 +31,11 @@
                     <td>{{ $user->is_enabled ? 'Yes' : 'No' }}</td>
                     <td>{{ $user->created_at->format('Y M d H:i') }}<span
                             class="opacity-50">{{ $user->created_at->format(':s e') }}</span></td>
+                    <td>
+                        <form method="post" action="/user/{{ $user->id }}"
+                            onSubmit="return confirm('Really delete '+{{ json_encode($user->name) }}+'?')">@csrf
+                            @method('DELETE')<button type="submit">Delete</button></form>
+                    </td>
                 </tr>
             @endforeach
         </tbody>

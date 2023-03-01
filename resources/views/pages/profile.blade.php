@@ -31,24 +31,28 @@
 
     <h2>Email addresses</h2>
 
-    <table>
-        <tbody>
-            @foreach ($emailAddresses as $emailAddress)
-                <tr>
-                    <td>{{ $emailAddress->email_address }}</td>
-                    @if ($user->emailAddresses->count() >= 2)
-                        <td>
-                            <form method="post" action="/email-address/{{ $emailAddress->email_address }}"
-                                onSubmit="return confirm('Really delete ' + {{ json_encode($emailAddress->email_address) }} + '? You won\'t be able to log in with it anymore.')">
-                                @csrf @method('DELETE')
-                                <button type="submit">Delete</button>
-                            </form>
-                        </td>
-                    @endif
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+    @if ($user->emailAddresses->count() > 0)
+        <table>
+            <tbody>
+                @foreach ($emailAddresses as $emailAddress)
+                    <tr>
+                        <td>{{ $emailAddress->email_address }}</td>
+                        @if ($user->emailAddresses->count() >= 2)
+                            <td>
+                                <form method="post" action="/email-address/{{ $emailAddress->email_address }}"
+                                    onSubmit="return confirm('Really delete ' + {{ json_encode($emailAddress->email_address) }} + '? You won\'t be able to log in with it anymore.')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit">Delete</button>
+                                </form>
+                            </td>
+                        @endif
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @else
+        <i>You don't have any email addresses, and won't be able to log in</i>
+    @endif
 
     <form method="post" action="/email-address">
         @csrf

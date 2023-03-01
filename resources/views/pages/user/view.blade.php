@@ -25,22 +25,26 @@
 
     <h2>Email addresses</h2>
 
-    <table>
-        <tbody>
-            @foreach ($user->emailAddresses->sortBy('sortValue') as $emailAddress)
-                <tr>
-                    <td>{{ $emailAddress->email_address }}</td>
-                    <td>
-                        <form method="post" action="/email-address/{{ $emailAddress->email_address }}"
-                            onSubmit="return confirm('Really delete ' + {{ json_encode($emailAddress->email_address) }} + ' from ' + {{ json_encode($user->name) }} + '?')">
-                            @csrf @method('DELETE')
-                            <button type="submit">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+    @if ($user->emailAddresses->count() > 0)
+        <table>
+            <tbody>
+                @foreach ($user->emailAddresses->sortBy('sortValue') as $emailAddress)
+                    <tr>
+                        <td>{{ $emailAddress->email_address }}</td>
+                        <td>
+                            <form method="post" action="/email-address/{{ $emailAddress->email_address }}"
+                                onSubmit="return confirm('Really delete ' + {{ json_encode($emailAddress->email_address) }} + ' from ' + {{ json_encode($user->name) }} + '?')">
+                                @csrf @method('DELETE')
+                                <button type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @else
+        <i>{{ $user->name }} doesn't have any email addresses</i>
+    @endif
 
     <form method="post" action="/user/{{ $user->id }}/email-address">
         @csrf

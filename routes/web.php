@@ -40,6 +40,7 @@ Route::middleware(['auth', 'auth.enabled', 'auth.admin'])->group(function () {
     Route::get('user/{user}', [UserController::class, 'view']);
     Route::post('user/new', [UserController::class, 'create']);
     Route::post('user/{user}', [UserController::class, 'update']);
+    Route::delete('user/{user}', [UserController::class, 'delete']);
     Route::post('user/{user}/change-password', [UserController::class, 'changePassword']);
     Route::post('user/{user}/email-address', [UserController::class, 'addEmailAddress']);
 });

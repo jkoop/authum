@@ -6,6 +6,7 @@ use App\Models\EmailAddress;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 
 class UserController extends Controller {
     public function list() {
@@ -14,6 +15,8 @@ class UserController extends Controller {
     }
 
     public function view(User $user) {
+        if ($user->password == null) Session::push('warnings', "$user->name doesn't have a password");
+        if ($user->emailAddresses->count() < 1) Session::push('warnings', "$user->name doesn't have any email addresses");
         return view('pages.user.view', compact('user'));
     }
 
@@ -37,7 +40,12 @@ class UserController extends Controller {
 
         $user->save();
 
-        return back();
+        return back()->with('successes', ["Saved"]);
+    }
+
+    public function delete(User $user) {
+        $user->delete();
+        return back()->with('successes', ["Deleted $user->name"]);
     }
 
     public function changePassword(User $user, Request $request) {
@@ -48,7 +56,7 @@ class UserController extends Controller {
         $user->password = Hash::make($request->password);
         $user->save();
 
-        return back()->with(['success' => 'Successfully changed password']);
+        return back()->with('successes', ['Changed password']);
     }
 
     public function addEmailAddress(User $user, Request $request) {
@@ -61,6 +69,6 @@ class UserController extends Controller {
             'user_id' => $user->id,
         ]);
 
-        return back()->with(['success' => 'Successfully added email address.']);
+        return back()->with('successes', ["Added $request->email to $user->name"]);
     }
 }

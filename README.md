@@ -7,7 +7,7 @@
 -   [x] Users can remove email addresses
 -   [x] Pretty UI
     -   [ ] Favicon
--   [ ] Admins can CRUD users
+-   [x] Admins can CRUD users
 -   [ ] Admins can CRUD services
     -   [ ] Service permissions
 -   [ ] Admins can CRUD user groups
@@ -15,3 +15,4 @@
 -   [ ] Send user details to downstream service; probably with headers or something
 -   [ ] Users have a preferred email address (used for notifications, and to be sent to downstream service)
 -   [ ] Audit log
+-   [ ] Write tests

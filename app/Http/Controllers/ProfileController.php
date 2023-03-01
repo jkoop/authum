@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Redirect;
 
 class ProfileController extends Controller {
     public function view() {
@@ -23,11 +24,12 @@ class ProfileController extends Controller {
             'name' => 'required|string|min:2|max:255',
         ]);
 
+        /** @var User $user */
         $user = Auth::user();
         $user->name = $request->name;
         $user->save();
 
-        return back();
+        return back()->with(['successes' => ["Saved"]]);
     }
 
     public function changePassword(Request $request) {
@@ -37,6 +39,7 @@ class ProfileController extends Controller {
             'password_confirmation' => 'required|string|same:password',
         ]);
 
+        /** @var User $user */
         $user = Auth::user();
 
         if (!Hash::check($request->current_password, $user->password)) {
@@ -46,7 +49,7 @@ class ProfileController extends Controller {
         $user->password = Hash::make($request->password);
         $user->save();
 
-        return redirect('/profile')->with(['success' => 'Successfully changed password']);
+        return Redirect::to('/profile')->with(['successes' => ['Changed password']]);
     }
 
     public function sendVerifyEmailEmail(Request $request) {
@@ -56,7 +59,7 @@ class ProfileController extends Controller {
 
         Mail::to($request->email)->send(new VerifyEmail($request->email, Auth::user()));
 
-        return back()->with(['success' => 'We sent you an email with a email confirmation link.']);
+        return back()->with(['successes' => ['We sent you an email with an email confirmation link']]);
     }
 
     public function verifyEmail(string $token) {
@@ -68,11 +71,11 @@ class ProfileController extends Controller {
         }
 
         if ($token->user_id != Auth::id()) {
-            return redirect('/profile')->withErrors(["You aren't logged in as the user who requested the email validation."]);
+            return Redirect::to('/profile')->withErrors(["You must be logged in as the user who requested the email validation"]);
         }
 
         if (EmailAddress::where('email_address', $token->email_address)->exists()) {
-            return redirect('/profile')->withErrors(['Email address is already taken.']);
+            return Redirect::to('/profile')->withErrors(['Email address is already taken']);
         }
 
         EmailAddress::create([
@@ -80,11 +83,11 @@ class ProfileController extends Controller {
             'email_address' => $token->email_address,
         ]);
 
-        return redirect('/profile')->with(['success' => 'Successfully added email address.']);
+        return Redirect::to('/profile')->with('successes', ["Added $token->email_address"]);
     }
 
     public function deleteEmail(EmailAddress $emailAddress) {
         $emailAddress->delete();
-        return back()->with(['success' => 'Successfully deleted email address']);
+        return back()->with('successes', ["Deleted $emailAddress->email_address"]);
     }
 }

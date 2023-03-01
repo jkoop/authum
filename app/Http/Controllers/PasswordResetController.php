@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Redirect;
 
 class PasswordResetController extends Controller {
     public function submitEmailForm(Request $request) {
@@ -25,8 +26,7 @@ class PasswordResetController extends Controller {
 
         Mail::to($request->email)->send(new PasswordReset($user));
 
-        session()->put('success', "We sent you an email with a password reset link.");
-        return redirect('/login');
+        return Redirect::to('/login')->with('successes', ["We sent you an email with a password reset link."]);
     }
 
     public function viewResetForm(string $token) {
@@ -60,7 +60,6 @@ class PasswordResetController extends Controller {
 
         $token->delete();
 
-        session()->put('success', "Successfully reset your password.");
-        return redirect("/");
+        return Redirect::to("/")->with('successes', ["Changed password"]);
     }
 }
