@@ -5,6 +5,7 @@ use App\Http\Controllers\ForwardAuthController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\EnforceParentSessionLoggedInUser;
 use Illuminate\Support\Facades\Route;
@@ -43,6 +44,14 @@ Route::middleware(['auth', 'auth.enabled', 'auth.admin'])->group(function () {
     Route::delete('user/{user}', [UserController::class, 'delete']);
     Route::post('user/{user}/change-password', [UserController::class, 'changePassword']);
     Route::post('user/{user}/email-address', [UserController::class, 'addEmailAddress']);
+
+    Route::get('services', [ServiceController::class, 'list']);
+    Route::get('service/{service}', [ServiceController::class, 'view']);
+    Route::post('service/new', [ServiceController::class, 'create']);
+    Route::post('service/{service}', [ServiceController::class, 'update']);
+    Route::delete('service/{service}', [ServiceController::class, 'delete']);
+    Route::post('service/{service}/domain-name', [ServiceController::class, 'addDomainName']);
+    Route::delete('domain-name/{domainName}', [ServiceController::class, 'deleteDomainName']);
 });
 
 Route::middleware('guest')->group(function () {

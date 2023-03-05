@@ -22,9 +22,7 @@
                     <td><a href="/user/{{ $user->id }}">{{ $user->name }}</a></td>
                     <td>
                         @foreach ($user->emailAddresses->sortBy('sortValue') as $emailAddress)
-                            <span class="block">
-                                <a href="mailto:{{ $emailAddress->email_address }}">{{ $emailAddress->email_address }}</a>
-                            </span>
+                            <span class="block">{{ $emailAddress->email_address }}</span>
                         @endforeach
                     </td>
                     <td>{{ $user->is_admin ? 'Yes' : 'No' }}</td>

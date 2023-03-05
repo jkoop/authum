@@ -8,7 +8,7 @@
 -   [x] Pretty UI
     -   [ ] Favicon
 -   [x] Admins can CRUD users
--   [ ] Admins can CRUD services
+-   [x] Admins can CRUD services
     -   [ ] Service permissions
 -   [ ] Admins can CRUD user groups
 -   [ ] Server syncing
@@ -16,3 +16,5 @@
 -   [ ] Users have a preferred email address (used for notifications, and to be sent to downstream service)
 -   [ ] Audit log
 -   [ ] Write tests
+-   [ ] Service `entry_point` for where the service's link on the Dashboard goes
+-   [ ] Email white- and blacklists for allowing only sending emails to certain e-post offices
