@@ -14,6 +14,11 @@ class ServiceController extends Controller {
     }
 
     public function view(Service $service) {
+        if ($service->domainNames->count() < 1) {
+            Session::push('warnings', __(":serviceName doesn't have any domain names", [
+                'serviceName' => $service->name,
+            ]));
+        }
         return view('pages.service.view', compact('service'));
     }
 
@@ -32,12 +37,12 @@ class ServiceController extends Controller {
         $service->name = $request->name;
         $service->save();
 
-        return back()->with('successes', ["Saved"]);
+        return back()->with('successes', [__("Saved")]);
     }
 
     public function delete(Service $service) {
         $service->delete();
-        return back()->with('successes', ["Deleted $service->name"]);
+        return back()->with('successes', [__("Deleted :serviceName", ['serviceName' => $service->name])]);
     }
 
     public function addDomainName(Service $service, Request $request) {

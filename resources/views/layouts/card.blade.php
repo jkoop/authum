@@ -53,10 +53,8 @@
         }
     </style>
 
-    <div id="backdrop">
-        <iframe src="/dashboard/fake"
-            style="border: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden;"></iframe>
-    </div>
+    <iframe id="backdrop" src="/dashboard/fake"
+        style="border: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden;"></iframe>
 
     <div id="cardContainer">
         <div id="content">
@@ -70,8 +68,8 @@
 
             @auth
                 <footer>
-                    Logged in as {{ Auth::user()->name }}
-                    <a href="/logout" style="float:right">Logout</a>
+                    {{ __('Logged in as :userName', ['userName' => Auth::user()?->name ?? 'nobody']) }}
+                    <a href="/logout" style="float:right">{{ __('Logout') }}</a>
                 </footer>
             @endauth
         </div>

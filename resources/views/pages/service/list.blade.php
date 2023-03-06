@@ -1,17 +1,17 @@
 @extends('layouts.main')
-@section('title', 'Services')
+@section('title', __('Services'))
 @section('content')
     <form method="post" action="/service/new">
         @csrf
-        <button type="submit">Create new service</button>
+        <button type="submit">{{ __('Create new service') }}</button>
     </form>
 
     <table>
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Domain Names</th>
-                <th>Created At</th>
+                <th>{{ __('Name') }}</th>
+                <th>{{ __('Domain Names') }}</th>
+                <th>{{ __('Created At') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -27,8 +27,9 @@
                             class="opacity-50">{{ $service->created_at->format(':s e') }}</span></td>
                     <td>
                         <form method="post" action="/service/{{ $service->id }}"
-                            onSubmit="return confirm('Really delete '+{{ json_encode($service->name) }}+'?')">@csrf
-                            @method('DELETE')<button type="submit">Delete</button></form>
+                            onSubmit="return confirm({{ json_encode(__('Really delete :serviceName', ['serviceName' => $service->name])) }})">
+                            @csrf
+                            @method('DELETE')<button type="submit">{{ __('Delete') }}</button></form>
                     </td>
                 </tr>
             @endforeach

@@ -1,7 +1,7 @@
 @extends('layouts.card')
-@section('title', 'Account Disabled')
+@section('title', __('Account Disabled'))
 @section('content')
 
-    <p>This account is disabled</p>
+    <p>{{ __('This account is disabled') }}</p>
 
 @endsection

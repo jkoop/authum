@@ -21,12 +21,12 @@ class PasswordResetController extends Controller {
         })->first();
 
         if ($user === null) {
-            return back()->withErrors(["These credentials do not match our records."]);
+            return back()->withErrors([__("These credentials do not match our records")]);
         }
 
         Mail::to($request->email)->send(new PasswordReset($user));
 
-        return Redirect::to('/login')->with('successes', ["We sent you an email with a password reset link."]);
+        return Redirect::to('/login')->with('successes', [__("We sent you an email with a password reset link")]);
     }
 
     public function viewResetForm(string $token) {
@@ -60,6 +60,6 @@ class PasswordResetController extends Controller {
 
         $token->delete();
 
-        return Redirect::to("/")->with('successes', ["Changed password"]);
+        return Redirect::to("/")->with('successes', [__("Changed password")]);
     }
 }

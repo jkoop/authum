@@ -40,7 +40,7 @@ class UserController extends Controller {
 
         $user->save();
 
-        return back()->with('successes', ["Saved"]);
+        return back()->with('successes', [__("Saved")]);
     }
 
     public function delete(User $user) {
