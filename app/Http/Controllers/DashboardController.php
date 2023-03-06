@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Service;
+use Illuminate\Support\Collection;
 
 class DashboardController extends Controller {
     public function view() {
@@ -12,7 +13,23 @@ class DashboardController extends Controller {
     }
 
     public function viewFake() {
-        $services = Service::factory(rand(4, 6))->make(); // create() would save them
+        $services = new Collection();
+
+        for ($i = rand(0, 2); $i < 6; $i++) {
+            $name = "";
+
+            for ($j = rand(0, 7); $j < 10; $j++) {
+                $name .= chr(rand(97, 122));
+            }
+
+            $name .= " ";
+
+            for ($j = rand(2, 5); $j < 10; $j++) {
+                $name .= chr(rand(97, 122));
+            }
+
+            $services[] = new Service(compact('name'));
+        }
 
         return response(
             view('pages.dashboard', compact('services')),

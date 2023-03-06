@@ -14,18 +14,8 @@ class ServiceFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition() {
-        $name = "";
-
-        for ($i = rand(0, 7); $i < 10; $i++) {
-            $name .= chr(rand(97, 122));
-        }
-
-        $name .= " ";
-
-        for ($i = rand(2, 5); $i < 10; $i++) {
-            $name .= chr(rand(97, 122));
-        }
-
-        return compact('name');
+        return [
+            'name' => fake()->words(asText: true),
+        ];
     }
 }
