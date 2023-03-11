@@ -1,17 +1,18 @@
 @extends('layouts.main')
 @section('title', 'Services')
 @section('content')
-    <form method="post" action="/service/new">
-        @csrf
-        <button type="submit">Create new service</button>
-    </form>
-
     <table>
         <thead>
             <tr>
                 <th>Name</th>
                 <th>Domain Names</th>
                 <th>Created At</th>
+                <td>
+                    <form method="post" action="/service/new">
+                        @csrf
+                        <button type="submit">Create new service</button>
+                    </form>
+                </td>
             </tr>
         </thead>
         <tbody>

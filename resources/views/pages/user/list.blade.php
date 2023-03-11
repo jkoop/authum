@@ -1,11 +1,6 @@
 @extends('layouts.main')
 @section('title', 'Users')
 @section('content')
-    <form method="post" action="/user/new">
-        @csrf
-        <button type="submit">Create new user</button>
-    </form>
-
     <table>
         <thead>
             <tr>
@@ -14,6 +9,12 @@
                 <th>Is Admin?</th>
                 <th>Is Enabled?</th>
                 <th>Created At</th>
+                <td>
+                    <form method="post" action="/user/new">
+                        @csrf
+                        <button type="submit">Create new user</button>
+                    </form>
+                </td>
             </tr>
         </thead>
         <tbody>
