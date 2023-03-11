@@ -14,6 +14,9 @@ class ServiceController extends Controller {
     }
 
     public function view(Service $service) {
+        if ($service->domainNames->count() < 1) {
+            Session::push('warnings', "$service->name doesn't have any domain names");
+        }
         return view('pages.service.view', compact('service'));
     }
 

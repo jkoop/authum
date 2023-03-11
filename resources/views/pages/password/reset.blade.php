@@ -1,15 +1,8 @@
 @extends('layouts.card')
 @section('title', 'Reset password')
-@section('backdrop')
-
-    <iframe src="/dashboard/fake"
-        style="border: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden;"></iframe>
-
-@endsection
-
 @section('content')
 
-    <p>BTW: This is for {{ $user->name }}</p>
+    <p>BTW, This is for {{ $user->name }}</p>
 
     <form method="post">
         @csrf
