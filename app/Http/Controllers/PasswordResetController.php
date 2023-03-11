@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\PasswordReset;
 use App\Models\PasswordResetToken;
 use App\Models\User;
+use App\Rules\EmailAllowed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Redirect;
 class PasswordResetController extends Controller {
     public function submitEmailForm(Request $request) {
         $request->validate([
-            'email' => 'required|email|max:255',
+            'email' => ['required', 'email', 'max:255', new EmailAllowed],
         ]);
 
         $user = User::whereHas('emailAddresses', function ($query) use ($request) {

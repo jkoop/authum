@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\DomainName;
 use App\Models\EmailAddress;
+use App\Models\EmailPermission;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -30,6 +31,12 @@ class DatabaseSeeder extends Seeder {
         DomainName::create([
             'service_id' => $service->id,
             'domain_name' => 'whoami.localhost',
+        ]);
+
+        EmailPermission::create([
+            'order' => 0,
+            'regex' => '/.*/i',
+            'if_matches' => 'pass',
         ]);
     }
 }

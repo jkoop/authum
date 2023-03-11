@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\VerifyEmail;
 use App\Models\EmailAddress;
 use App\Models\EmailVerifyToken;
+use App\Rules\EmailAllowed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -54,7 +55,7 @@ class ProfileController extends Controller {
 
     public function sendVerifyEmailEmail(Request $request) {
         $request->validate([
-            'email' => 'required|email|unique:email_addresses,email_address',
+            'email' => ['required', 'email', 'unique:email_addresses,email_address', 'max:255', new EmailAllowed],
         ]);
 
         Mail::to($request->email)->send(new VerifyEmail($request->email, Auth::user()));
