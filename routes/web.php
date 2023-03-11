@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware(['auth', 'auth.enabled', 'preferredLocale'])->group(function () {
+Route::middleware(['auth', 'auth.enabled'])->group(function () {
     Route::get('/', [DashboardController::class, 'view']);
 
     Route::get('profile', [ProfileController::class, 'view']);
@@ -36,7 +36,7 @@ Route::middleware('auth')->group(function () {
     Route::get('logout', [LoginController::class, 'logout']);
 });
 
-Route::middleware(['auth', 'auth.enabled', 'auth.admin', 'preferredLocale'])->group(function () {
+Route::middleware(['auth', 'auth.enabled', 'auth.admin'])->group(function () {
     Route::get('users', [UserController::class, 'list']);
     Route::get('user/{user}', [UserController::class, 'view']);
     Route::post('user/new', [UserController::class, 'create']);

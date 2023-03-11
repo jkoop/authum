@@ -35,7 +35,7 @@ final class LoginController extends Controller {
         })->first();
 
         if ($user === null || !Hash::check($request->password, $user->password)) {
-            return back()->withErrors([__("These credentials do not match our records")]);
+            return back()->withErrors(["These credentials do not match our records."]);
         }
 
         Auth::login($user);

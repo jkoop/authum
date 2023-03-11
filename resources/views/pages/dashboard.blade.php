@@ -1,8 +1,8 @@
 @extends('layouts.main')
-@section('title', __('Dashboard'))
+@section('title', 'Dashboard')
 @section('content')
 
-    <h2>{{ __('Services') }}</h2>
+    <h2>Services</h2>
 
     @if ($services)
         <div class="flex flex-wrap gap-2">
@@ -14,7 +14,7 @@
             @endforeach
         </div>
     @else
-        <i>{{ __('none') }}</i>
+        <i>none</i>
     @endif
 
 @endsection

@@ -1,16 +1,16 @@
 @extends('layouts.main')
-@section('title', __('Service: :serviceName', ['serviceName' => $service->name]))
+@section('title', "Service: $service->name")
 @section('content')
 
-    <h2>{{ __('General') }}</h2>
+    <h2>General</h2>
 
     <form method="post" action="/service/{{ $service->id }}">
         @csrf
-        <x-string-input :label="__('Name')" name="name" :value="$service->name" required /><br>
-        <button type="submit">{{ __('Save') }}</button>
+        <x-string-input label="Name" name="name" :value="$service->name" required /><br>
+        <button type="submit">Save</button>
     </form>
 
-    <h2>{{ __('Domain names') }}</h2>
+    <h2>Domain names</h2>
 
     @if ($service->domainNames->count() > 0)
         <table>
@@ -20,14 +20,9 @@
                         <td>{{ $domainName->domain_name }}</td>
                         <td>
                             <form method="post" action="/domain-name/{{ $domainName->domain_name }}"
-                                onSubmit="return confirm({{ json_encode(
-                                    __('Really delete :domainName from :serviceName?', [
-                                        'domainName' => $domainName->domain_name,
-                                        'serviceName' => $service->name,
-                                    ]),
-                                ) }})">
+                                onSubmit="return confirm('Really delete ' + {{ json_encode($domainName->domain_name) }} + ' from ' + {{ json_encode($service->name) }} + '?')">
                                 @csrf @method('DELETE')
-                                <button type="submit">{{ __('Delete') }}</button>
+                                <button type="submit">Delete</button>
                             </form>
                         </td>
                     </tr>
@@ -35,17 +30,17 @@
             </tbody>
         </table>
     @else
-        <i>{{ __(":serviceName doesn't have any domain names", ['serviceName' => $service->name]) }}</i>
+        <i>{{ $service->name }} doesn't have any domain names</i>
     @endif
 
     <form method="post" action="/service/{{ $service->id }}/domain-name">
         @csrf
         <label>
-            {{ __('New domain name') }}<br>
+            New domain name<br>
             <input name="domain" pattern="^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$"
                 required />
         </label><br>
-        <button type="submit">{{ __('Add domain name') }}</button>
+        <button type="submit">Add domain name</button>
     </form>
 
 @endsection

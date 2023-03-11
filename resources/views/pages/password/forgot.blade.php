@@ -1,16 +1,23 @@
 @extends('layouts.card')
-@section('title', __('Forgot password'))
+@section('title', 'Forgot password')
+@section('backdrop')
+
+    <iframe src="/dashboard/fake"
+        style="border: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden;"></iframe>
+
+@endsection
+
 @section('content')
 
     <form method="post">
         @csrf
         <label>
-            {{ __('Email address') }}<br>
+            Email address<br>
             <input name="email" type="email" maxlength="255" autofocus required />
         </label><br>
-        <button type="submit">{{ __('Send reset email') }}</button>
+        <button type="submit">Send reset email</button>
     </form>
 
-    <p><a href="/login">{{ __('Login') }}</a></p>
+    <p><a href="/login">Login</a></p>
 
 @endsection

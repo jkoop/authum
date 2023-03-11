@@ -1,8 +1,8 @@
 @extends('layouts.card')
-@section('title', __('Invalid Token'))
+@section('title', 'Invalid Token')
 @section('content')
 
-    <p>{{ __("Token expired or doesn't exist") }}</p>
-    <p><a href="/">{{ __('Log in') }}</a></p>
+    <p>Token expired or doesn't exist.</p>
+    <p><a href="/">Log in</a></p>
 
 @endsection
