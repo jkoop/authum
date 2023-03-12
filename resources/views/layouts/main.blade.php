@@ -9,6 +9,7 @@
         @if (Auth::user()?->is_admin)
             <a href="/users">Users</a>
             <a href="/services">Services</a>
+            <a href="/email-permissions">Email Permissions</a>
         @endif
 
         <a href="/profile" class="ml-auto">Profile</a>

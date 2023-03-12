@@ -17,4 +17,4 @@
 -   [ ] Audit log
 -   [ ] Write tests
 -   [ ] Service `entry_point` for where the service's link on the Dashboard goes
--   [ ] Email white- and blacklists for allowing only sending emails to certain e-post offices
+-   [x] Email white- and blacklists for allowing only sending emails to certain e-post offices

@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder {
             'order' => 0,
             'regex' => '/.*/i',
             'if_matches' => 'pass',
+            'comment' => 'Allow every email address',
         ]);
     }
 }

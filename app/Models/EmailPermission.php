@@ -14,6 +14,7 @@ class EmailPermission extends Model {
         'order',
         'regex',
         'if_matches',
+        'comment',
     ];
 
     public function matches(string $string): bool {

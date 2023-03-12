@@ -16,6 +16,7 @@ return new class extends Migration {
             $table->unsignedInteger('order')->index();
             $table->string('regex');
             $table->enum('if_matches', ['pass', 'fail']);
+            $table->string('comment')->nullable();
             $table->bigInteger('created_at');
             $table->bigInteger('updated_at');
         });

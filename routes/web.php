@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmailPermissionsController;
 use App\Http\Controllers\ForwardAuthController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PasswordResetController;
@@ -21,37 +22,40 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware(['auth', 'auth.enabled'])->group(function () {
-    Route::get('/', [DashboardController::class, 'view']);
-
-    Route::get('profile', [ProfileController::class, 'view']);
-    Route::post('profile', [ProfileController::class, 'updateGeneral']);
-    Route::post('profile/change-password', [ProfileController::class, 'changePassword']);
-    Route::post('email-address', [ProfileController::class, 'sendVerifyEmailEmail'])->middleware('throttle');
-    Route::get('add-email/{token}', [ProfileController::class, 'verifyEmail'])->middleware('throttle');
-    Route::delete('email-address/{emailAddress}', [ProfileController::class, 'deleteEmail'])->middleware('can:delete,emailAddress');
-});
-
 Route::middleware('auth')->group(function () {
     Route::get('logout', [LoginController::class, 'logout']);
-});
 
-Route::middleware(['auth', 'auth.enabled', 'auth.admin'])->group(function () {
-    Route::get('users', [UserController::class, 'list']);
-    Route::get('user/{user}', [UserController::class, 'view']);
-    Route::post('user/new', [UserController::class, 'create']);
-    Route::post('user/{user}', [UserController::class, 'update']);
-    Route::delete('user/{user}', [UserController::class, 'delete']);
-    Route::post('user/{user}/change-password', [UserController::class, 'changePassword']);
-    Route::post('user/{user}/email-address', [UserController::class, 'addEmailAddress']);
+    Route::middleware('auth.enabled')->group(function () {
+        Route::get('/', [DashboardController::class, 'view']);
 
-    Route::get('services', [ServiceController::class, 'list']);
-    Route::get('service/{service}', [ServiceController::class, 'view']);
-    Route::post('service/new', [ServiceController::class, 'create']);
-    Route::post('service/{service}', [ServiceController::class, 'update']);
-    Route::delete('service/{service}', [ServiceController::class, 'delete']);
-    Route::post('service/{service}/domain-name', [ServiceController::class, 'addDomainName']);
-    Route::delete('domain-name/{domainName}', [ServiceController::class, 'deleteDomainName']);
+        Route::get('profile', [ProfileController::class, 'view']);
+        Route::post('profile', [ProfileController::class, 'updateGeneral']);
+        Route::post('profile/change-password', [ProfileController::class, 'changePassword']);
+        Route::post('email-address', [ProfileController::class, 'sendVerifyEmailEmail'])->middleware('throttle');
+        Route::get('add-email/{token}', [ProfileController::class, 'verifyEmail'])->middleware('throttle');
+        Route::delete('email-address/{emailAddress}', [ProfileController::class, 'deleteEmail'])->middleware('can:delete,emailAddress');
+
+        Route::middleware('auth.admin')->group(function () {
+            Route::get('users', [UserController::class, 'list']);
+            Route::get('user/{user}', [UserController::class, 'view']);
+            Route::post('user/new', [UserController::class, 'create']);
+            Route::post('user/{user}', [UserController::class, 'update']);
+            Route::delete('user/{user}', [UserController::class, 'delete']);
+            Route::post('user/{user}/change-password', [UserController::class, 'changePassword']);
+            Route::post('user/{user}/email-address', [UserController::class, 'addEmailAddress']);
+
+            Route::get('services', [ServiceController::class, 'list']);
+            Route::get('service/{service}', [ServiceController::class, 'view']);
+            Route::post('service/new', [ServiceController::class, 'create']);
+            Route::post('service/{service}', [ServiceController::class, 'update']);
+            Route::delete('service/{service}', [ServiceController::class, 'delete']);
+            Route::post('service/{service}/domain-name', [ServiceController::class, 'addDomainName']);
+            Route::delete('domain-name/{domainName}', [ServiceController::class, 'deleteDomainName']);
+
+            Route::get('email-permissions', [EmailPermissionsController::class, 'list']);
+            Route::post('email-permissions', [EmailPermissionsController::class, 'update']);
+        });
+    });
 });
 
 Route::middleware('guest')->group(function () {
