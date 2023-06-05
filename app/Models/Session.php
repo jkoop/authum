@@ -10,11 +10,8 @@ class Session extends Model {
     public $timestamps = false;
 
     protected $fillable = [
+        'id',
         'user_id',
-    ];
-
-    public $casts = [
-        'last_activity' => 'datetime',
     ];
 
     public function user(): BelongsTo {

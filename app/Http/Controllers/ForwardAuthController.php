@@ -6,6 +6,7 @@ use App\Models\AuthenticationReturnToken;
 use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 
 final class ForwardAuthController extends Controller {
     private string $method;
@@ -71,10 +72,9 @@ final class ForwardAuthController extends Controller {
             return response(view('pages.token.bad'), 400);
         }
 
-        session()->put('parentSessionId', $token->parent_session_id);
         $token->delete();
-
-        return redirect($token->forward_to);
+        setcookie('session_id', $token->parent_session_id, strtotime("+30 days"), "/", $this->host, true, true);
+        return Redirect::to($token->forward_to);
     }
 
     /**

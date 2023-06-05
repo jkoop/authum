@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\Crockford32;
 use App\Models\AuthenticationReturnToken;
+use App\Models\Session as ModelsSession;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +40,10 @@ final class LoginController extends Controller {
         }
 
         Auth::login($user);
+        ModelsSession::create([
+            'id' => session()->getId(),
+            'user_id' => $user->user_id,
+        ]);
 
         if ($request->has('from')) {
             return $this->redirectWithToken($request);
@@ -68,6 +73,7 @@ final class LoginController extends Controller {
     }
 
     public function logout(Request $request) {
+        ModelsSession::where('id', session()->getId())->delete();
         Auth::logout();
         return redirect("/login");
     }
