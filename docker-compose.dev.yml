@@ -1,79 +1,82 @@
 version: '3'
 services:
-    app:
-        image: jkoop/laravel
-        volumes:
-            - '.:/var/www/html'
-        networks:
-            - sail
-        depends_on:
-            - mysql
-            - mailpit
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.laravel.rule=(Host(`laravel.localhost`) || Host(`db.laravel.localhost`))
-            - traefik.http.services.laravel.loadbalancer.server.port=80
-            - traefik.http.routers.laravel.entrypoints=web
+  authum:
+    image: webdevops/php-nginx:8.2
+    volumes:
+      - '.:/app'
+    environment:
+      WEB_DOCUMENT_ROOT: '/app/public'
+    networks:
+      - sail
+    depends_on:
+      - mysql
+      - mailpit
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authum.rule=(Host(`authum.localhost`) || Host(`db.authum.localhost`))
+      - traefik.http.services.authum.loadbalancer.server.port=80
+      - traefik.http.routers.authum.entrypoints=web
 
-    mysql:
-        image: 'mysql/mysql-server:8.0'
-        environment:
-            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ROOT_HOST: "%"
-            MYSQL_DATABASE: '${DB_DATABASE}'
-            MYSQL_USER: '${DB_USERNAME}'
-            MYSQL_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ALLOW_EMPTY_PASSWORD: 1
-        volumes:
-            - 'sail-mysql:/var/lib/mysql'
-        networks:
-            - sail
-        healthcheck:
-            test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
-            retries: 3
-            timeout: 5s
+  mysql:
+    image: 'mysql/mysql-server:8.0'
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: '${DB_DATABASE}'
+      MYSQL_USER: '${DB_USERNAME}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+    volumes:
+      - 'sail-mysql:/var/lib/mysql'
+    networks:
+      - sail
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+      retries: 3
+      timeout: 5s
 
-    mailpit:
-        image: 'axllent/mailpit:latest'
-        ports:
-            - '${FORWARD_MAILPIT_PORT:-1025}:1025'
-            - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
-        networks:
-            - sail
+  mailpit:
+    image: 'axllent/mailpit:latest'
+    ports:
+      - '${FORWARD_MAILPIT_PORT:-1025}:1025'
+      - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
+    networks:
+      - sail
 
-    traefik:
-        image: traefik
-        ports:
-            - '${APP_PORT:-80}:80'
-        command:
-            - --api.dashboard=true
-            - --api.insecure=true
-            - --providers.docker.endpoint=unix:///var/run/docker.sock
-            - --providers.docker.exposedbydefault=false
-            - --providers.docker.network=authum_sail
-            - --log.level=debug
-            - --entrypoints.web.address=:80
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock:ro # so traefik can listen to docker events
-        networks:
-            - sail
+  traefik:
+    image: traefik
+    ports:
+      - '${APP_PORT:-80}:80'
+      - 8080:8080
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker.endpoint=unix:///var/run/docker.sock
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=authum_sail
+      - --log.level=debug
+      - --entrypoints.web.address=:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # so traefik can listen to docker events
+    networks:
+      - sail
 
-    whoami:
-        image: containous/whoami
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.whoami.rule=Host(`whoami.localhost`)
-            - traefik.http.services.whoami.loadbalancer.server.port=80
-            - traefik.http.routers.whoami.entrypoints=web
-            - traefik.http.middlewares.authum.forwardAuth.address=http://laravel.test:80/_authum/forward-auth
-            - traefik.http.routers.whoami.middlewares=authum
-        networks:
-            - sail
+  whoami:
+    image: containous/whoami
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.whoami.rule=Host(`whoami.localhost`)
+      - traefik.http.services.whoami.loadbalancer.server.port=80
+      - traefik.http.routers.whoami.entrypoints=web
+      - traefik.http.middlewares.authum.forwardAuth.address=http://authum:80/_authum/forward-auth
+      - traefik.http.routers.whoami.middlewares=authum
+    networks:
+      - sail
 
 networks:
-    sail:
-        driver: bridge
+  sail:
+    driver: bridge
 
 volumes:
-    sail-mysql:
-        driver: local
+  sail-mysql:
+    driver: local
