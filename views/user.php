@@ -24,7 +24,7 @@
         <?php endforeach ?>
     </ul>
 
-    <?php include 'logged-in-footer.php' ?>
+    <?php view('logged-in-footer') ?>
 </body>
 
 </html>

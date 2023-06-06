@@ -1,7 +1,6 @@
 <?php
 
 include_once __DIR__ . '/../vendor/autoload.php';
-include __DIR__ . '/../functions.php';
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
@@ -23,11 +22,11 @@ DB::$encoding = 'utf8'; // defaults to latin1 if omitted
 
 doRouting([
     // requestMethod, path, responseFunction, ?gateFunction
-    ['', '_authum/forward-auth', 'handleForwardAuth'],
-    ['view',    '/',        'home',     'loggedIn'],
-    ['view',    'login',    'login',    'notLoggedIn'],
-    ['POST',    'login',    'tryLogin', 'notLoggedIn'],
-    ['GET',     'logout',   'doLogout'],
-    ['view',    'users',    'users',    'admin'],
-    ['GET',     'user',     'viewUser', 'admin'],
+    ['', '_authum/forward-auth', 'ForwardAuth::handle'],
+    ['view', '/', 'home', 'loggedIn'],
+    ['view', 'login', 'Login::login', 'notLoggedIn'],
+    ['POST', 'login', 'Login::tryLogin', 'notLoggedIn'],
+    ['GET', 'logout', 'Login::doLogout'],
+    ['view', 'users', 'users', 'admin'],
+    ['GET', 'user', 'User::view', 'admin'],
 ]);

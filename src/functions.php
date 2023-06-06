@@ -31,7 +31,7 @@ define('REQUEST_PAYLOAD', (function () {
 })());
 
 function abort(int $status, string $message = null): never {
-    if ($status < 400 || $status > 599) throw new InvalidArgumentException('$message must between 400 and 599, inclusive');
+    if ($status < 400 || $status > 599) throw new InvalidArgumentException('$status must between 400 and 599, inclusive');
 
     static $defaultMessages = [
         '400' => 'Bad Request',
@@ -77,7 +77,7 @@ function abort(int $status, string $message = null): never {
     ];
 
     http_response_code($status);
-    include __DIR__ . '/views/error.php';
+    view('error', compact('status', 'defaultMessages', 'message'));
     exit();
 }
 
@@ -134,12 +134,12 @@ function doRouting(array $routes): never {
     }
 
     if (!empty($routesThatMatch)) {
-        if (isset($routesThatMatch[0][3])) ('gate' . ucfirst($routesThatMatch[0][3]))(); // gate
+        if (isset($routesThatMatch[0][3])) ('Gates::' . $routesThatMatch[0][3])(); // gate
 
         if ($routesThatMatch[0][0] == 'view') {
-            include(__DIR__ . '/views/' . $routesThatMatch[0][2] . '.php');
+            view($routesThatMatch[0][2]);
         } else {
-            ('web' . ucfirst($routesThatMatch[0][2]))(); // response handler
+            ('Web\\' . ucfirst($routesThatMatch[0][2]))(); // response handler
         }
     } else if (!empty($routesThatMatchPath)) {
         header('Allow: ' . implode(', ', array_column($routesThatMatchPath, '0')));
@@ -152,89 +152,10 @@ function doRouting(array $routes): never {
 }
 
 function loggedInUser(): array|null {
-	return DB::queryFirstRow('SELECT * FROM users LIMIT 1');
+    return DB::queryFirstRow('SELECT * FROM users LIMIT 1');
 }
 
-function isAdmin(): bool {
-    return isLoggedIn();
-}
-
-function isLoggedIn() {
-    return isset($_COOKIE['authum_login']);
-}
-
-/**
- * @return void|never
- */
-function gateAdmin() {
-    gateLoggedIn();
-    if (!isAdmin()) abort(403);
-}
-
-/**
- * @return void|never
- */
-function gateLoggedIn() {
-    if (!isLoggedIn()) {
-        $_SESSION['intended'] = REQUEST_PATH . '?' . http_build_query($_GET);
-        redirect('/login');
-    }
-}
-
-/**
- * @return void|never
- */
-function gateNotLoggedIn() {
-    if (isLoggedIn()) redirect('/');
-}
-
-function webHandleForwardAuth(): never {
-    dd([
-        $_SERVER,
-        $_POST,
-        $_GET,
-        $_COOKIE
-    ]);
-    redirect('//authum.localhost/login?return_token=9346193761');
-}
-
-function webTryLogin(): never {
-    $email = REQUEST_PAYLOAD['email'] ?? addError('email is required');
-    $password = REQUEST_PAYLOAD['password'] ?? addError('password is required');
-
-    responseFormValidationFailMaybe();
-
-    $passwordHash = DB::queryFirstField(<<<SQL
-        SELECT `password`
-        FROM `users`
-        INNER JOIN `email_addresses` ON `email_addresses`.`user_id` = `users`.`id`
-        WHERE `email_address` = %s;
-    SQL, $email);
-
-    if (!$passwordHash) addError('no such user or bad password');
-    responseFormValidationFailMaybe();
-    if (!password_verify($password, $passwordHash ?? '')) addError('no such user or bad password');
-    responseFormValidationFailMaybe();
-
-    setcookie("authum_login", '123456', strtotime('+1 hour'));
-
-    $location = $_SESSION['intended'] ?? '/';
-    unset($_SESSION['intended']);
-    redirect($location);
-}
-
-function webDoLogout(): never {
-    setcookie("authum_login", '', 0);
-    redirect('/login');
-}
-
-function webViewUser(): never {
-    $user = DB::queryFirstRow('SELECT * FROM users WHERE id = %s', REQUEST_PAYLOAD['id'] ?? abort(400));
-
-    if (!$user) abort(404);
-
-    $emailAddresses = DB::query('SELECT * FROM email_addresses WHERE user_id = %s', REQUEST_PAYLOAD['id']);
-
-    include 'views/user.php';
-    exit;
+function view(string $viewPath, array $variables = []): void {
+    extract($variables);
+    include __DIR__ . '/../views/' . $viewPath . '.php';
 }

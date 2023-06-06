@@ -5,5 +5,13 @@
     },
     "require-dev": {
         "filp/whoops": "^2.15"
+    },
+    "autoload": {
+        "files": [
+            "src/functions.php"
+        ],
+        "classmap": [
+            "src/"
+        ]
     }
 }

@@ -10,7 +10,7 @@
 <body>
     <h1>Home</h1>
 
-    <?php if (isAdmin()) : ?>
+    <?php if (Checks::isAdmin()) : ?>
         <ul>
             <li><a href="/users">Users</a></li>
         </ul>
@@ -19,12 +19,12 @@
     <h2>Services</h2>
 
     <ul>
-        <?php foreach (DB::query('SELECT DISTINCT id, name, domain_name FROM services INNER JOIN domain_names ON services.id = domain_names.service_id') as $service): ?>
+        <?php foreach (DB::query('SELECT DISTINCT id, name, domain_name FROM services INNER JOIN domain_names ON services.id = domain_names.service_id') as $service) : ?>
             <li><a href="//<?= e($service['domain_name']) ?>"><?= e($service['name']) ?></a></li>
         <?php endforeach ?>
     </ul>
 
-    <?php include 'logged-in-footer.php' ?>
+    <?php view('logged-in-footer') ?>
 </body>
 
 </html>
