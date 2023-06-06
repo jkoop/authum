@@ -1,9 +1,20 @@
-<?php include __DIR__ . '/login_head.php'; ?>
+<!DOCTYPE html>
+<html lang="en-CA">
 
-<form method="post">
-    <label>Email: <input type="email" name="email" /></label><br>
-    <label>Password: <input type="password" name="email" /></label><br>
-    <button type="submit">Login</button>
-</form>
+<head>
+    <meta charset="utf-8">
+    <meta name=viewport content="width=device-width,initial-scale=1">
+    <title>Login - Authum</title>
+</head>
 
-<?php include __DIR__ . '/login_foot.php'; ?>
+<body>
+    <h1>Login</h1>
+    <?php include __DIR__ . '/messages.php'; ?>
+    <form method="post">
+        <label>Email: <input type="email" name="email" autofocus /></label><br>
+        <label>Password: <input type="password" name="password" /></label><br>
+        <button type="submit">Login</button>
+    </form>
+</body>
+
+</html>

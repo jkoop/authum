@@ -1,6 +1,6 @@
 <?php
 
-include __DIR__ . '/../vendor/autoload.php';
+include_once __DIR__ . '/../vendor/autoload.php';
 include __DIR__ . '/../functions.php';
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
@@ -12,6 +12,22 @@ if ($_ENV['APP_ENV'] == 'local') {
     $whoops->register();
 }
 
+session_start();
+
+DB::$user = $_ENV['DB_USERNAME'];
+DB::$password = $_ENV['DB_PASSWORD'];
+DB::$dbName = $_ENV['DB_DATABASE'];
+DB::$host = $_ENV['DB_HOST']; //defaults to localhost if omitted
+DB::$port = $_ENV['DB_PORT']; // defaults to 3306 if omitted
+DB::$encoding = 'utf8'; // defaults to latin1 if omitted
+
 doRouting([
-    ['view', '/login', 'login'],
+    // requestMethod, path, responseFunction, ?gateFunction
+    ['', '_authum/forward-auth', 'handleForwardAuth'],
+    ['view',    '/',        'home',     'loggedIn'],
+    ['view',    'login',    'login',    'notLoggedIn'],
+    ['POST',    'login',    'tryLogin', 'notLoggedIn'],
+    ['GET',     'logout',   'doLogout'],
+    ['view',    'users',    'users',    'admin'],
+    ['GET',     'user',     'viewUser', 'admin'],
 ]);
