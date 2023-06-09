@@ -9,7 +9,7 @@ services:
     networks:
       - sail
     depends_on:
-      - mysql
+      - db
       - mailpit
     labels:
       - traefik.enable=true
@@ -17,17 +17,17 @@ services:
       - traefik.http.services.authum.loadbalancer.server.port=80
       - traefik.http.routers.authum.entrypoints=web
 
-  mysql:
-    image: 'mysql/mysql-server:8.0'
+  db:
+    image: 'mariadb:10'
     environment:
-      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-      MYSQL_ROOT_HOST: "%"
-      MYSQL_DATABASE: '${DB_DATABASE}'
-      MYSQL_USER: '${DB_USERNAME}'
-      MYSQL_PASSWORD: '${DB_PASSWORD}'
-      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+      MARIADB_ROOT_PASSWORD: '${DB_PASSWORD}'
+      MARIADB_ROOT_HOST: "%"
+      MARIADB_DATABASE: '${DB_DATABASE}'
+      MARIADB_USER: '${DB_USERNAME}'
+      MARIADB_PASSWORD: '${DB_PASSWORD}'
+      MARIADB_ALLOW_EMPTY_PASSWORD: 1
     volumes:
-      - 'sail-mysql:/var/lib/mysql'
+      - db:/var/lib/mysql
     networks:
       - sail
     healthcheck:
@@ -78,5 +78,5 @@ networks:
     driver: bridge
 
 volumes:
-  sail-mysql:
+  db:
     driver: local

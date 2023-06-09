@@ -20,13 +20,15 @@ DB::$host = $_ENV['DB_HOST']; //defaults to localhost if omitted
 DB::$port = $_ENV['DB_PORT']; // defaults to 3306 if omitted
 DB::$encoding = 'utf8'; // defaults to latin1 if omitted
 
+doMigrations();
+
 doRouting([
     // requestMethod, path, responseFunction, ?gateFunction
     ['', '_authum/forward-auth', 'ForwardAuth::handle'],
     ['view', '/', 'home', 'loggedIn'],
-    ['view', 'login', 'Login::login', 'notLoggedIn'],
+    ['view', 'login', 'login', 'notLoggedIn'],
     ['POST', 'login', 'Login::tryLogin', 'notLoggedIn'],
-    ['GET', 'logout', 'Login::doLogout'],
+    ['GET', 'logout', 'Login::doLogout', 'loggedIn'],
     ['view', 'users', 'users', 'admin'],
     ['GET', 'user', 'User::view', 'admin'],
 ]);

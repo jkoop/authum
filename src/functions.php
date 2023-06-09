@@ -151,11 +151,68 @@ function doRouting(array $routes): never {
     exit;
 }
 
+/**
+ * @return array|null null if not logged in
+ */
 function loggedInUser(): array|null {
-    return DB::queryFirstRow('SELECT * FROM users LIMIT 1');
+    if (strlen($_COOKIE['authum_session'] ?? '') != 42) return null;
+    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $_COOKIE['authum_session']) == 0) return null;
+    DB::query('UPDATE `sessions` SET `last_used_at` = UNIX_TIMESTAMP() WHERE `id` = %s', $_COOKIE['authum_session']);
+    return DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) LIMIT 1', $_COOKIE['authum_session']);
 }
 
 function view(string $viewPath, array $variables = []): void {
     extract($variables);
     include __DIR__ . '/../views/' . $viewPath . '.php';
+}
+
+/**
+ * Check if there are database migrations to perform and, if there are, perform them.
+ * @return void|never
+ */
+function doMigrations() {
+    if (DB::queryFirstField('SELECT IS_USED_LOCK("authum_migrating")') !== null) {
+        view('migrations-running');
+        exit;
+    }
+
+    $migrationsTableIsMissing = DB::queryFirstField(<<<SQL
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = %s AND TABLE_NAME = "migrations"
+    SQL, DB::$dbName) == 0;
+
+    // filenames in migrations/ that aren't hidden, with their extensions removed
+    $migrations = array_map(fn ($a) => substr($a, 0, -4), array_filter(scandir(__DIR__ . '/../migrations'), fn ($a) => $a[0] != '.'));
+
+    if ($migrationsTableIsMissing) {
+        $pendingMigrations = $migrations;
+    } else {
+        $pendingMigrations = array_diff($migrations, DB::queryFirstColumn('SELECT `name` FROM `migrations`'));
+    }
+
+    if (count($pendingMigrations) > 0) {
+        DB::query('SELECT GET_LOCK("authum_migrating", -1)'); // get lock; wait for it forever
+
+        if ($migrationsTableIsMissing) {
+            $pendingMigrations = $migrations;
+        } else {
+            $pendingMigrations = array_diff($migrations, DB::queryFirstColumn('SELECT `name` FROM `migrations`'));
+        }
+
+        $pendingMigrations = array_unique($pendingMigrations);
+        sort($pendingMigrations);
+
+        foreach ($pendingMigrations as $name) {
+            if (file_exists(__DIR__ . "/../migrations/$name.php")) {
+                include(__DIR__ . "/../migrations/$name.php");
+            } else {
+                DB::get()->multi_query(file_get_contents(__DIR__ . "/../migrations/$name.sql"));
+            }
+            while (DB::get()->next_result()); // flush multi_queries
+            DB::query('INSERT INTO `migrations` VALUES (%s)', $name);
+        };
+
+        DB::query('SELECT RELEASE_LOCK("authum_migrating")');
+    }
 }

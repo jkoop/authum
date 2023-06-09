@@ -3,6 +3,8 @@
 namespace Web;
 
 use DB;
+use SKleeschulte\Base32;
+use Ulid\Ulid;
 
 class Login {
     static function tryLogin(): never {
@@ -11,19 +13,22 @@ class Login {
 
         responseFormValidationFailMaybe();
 
-        $passwordHash = DB::queryFirstField(<<<SQL
-            SELECT `password`
+        $user = DB::queryFirstRow(<<<SQL
+            SELECT `id`, `password`
             FROM `users`
             INNER JOIN `email_addresses` ON `email_addresses`.`user_id` = `users`.`id`
             WHERE `email_address` = %s;
         SQL, $email);
 
-        if (!$passwordHash) addError('no such user or bad password');
+        if (!$user['password']) addError('no such user or bad password');
         responseFormValidationFailMaybe();
-        if (!password_verify($password, $passwordHash ?? '')) addError('no such user or bad password');
+        if (!password_verify($password, $user['password'] ?? '')) addError('no such user or bad password');
         responseFormValidationFailMaybe();
 
-        setcookie("authum_login", '123456', strtotime('+1 hour'));
+        $sessionId = Ulid::generate() . Base32::encodeByteStrToCrockford(random_bytes(10));
+        DB::query('INSERT INTO `sessions` (`id`, `user_id`, `created_at`, `last_used_at`) VALUES (%s, %s, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())', $sessionId, $user['id']);
+
+        setcookie("authum_session", $sessionId, strtotime('+1 hour'));
 
         $location = $_SESSION['intended'] ?? '/';
         unset($_SESSION['intended']);
@@ -31,7 +36,8 @@ class Login {
     }
 
     static function doLogout(): never {
-        setcookie("authum_login", '', 0);
+        DB::query('DELETE FROM `sessions` WHERE `id` = %s', $_COOKIE['authum_session']);
+        setcookie("authum_session", '', 0);
         redirect('/login');
     }
 }

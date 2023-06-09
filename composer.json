@@ -1,7 +1,9 @@
 {
     "require": {
         "sergeytsalkov/meekrodb": "^2.4",
-        "vlucas/phpdotenv": "^5.5"
+        "vlucas/phpdotenv": "^5.5",
+        "robinvdvleuten/ulid": "^5.0",
+        "skleeschulte/base32": "^0.0.2"
     },
     "require-dev": {
         "filp/whoops": "^2.15"
