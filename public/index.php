@@ -26,7 +26,7 @@ doRouting([
     // requestMethod, path, responseFunction, ?gateFunction
     ['', '_authum/forward-auth', 'ForwardAuth::handle'],
     ['view', '/', 'home', 'loggedIn'],
-    ['view', 'login', 'login', 'notLoggedIn'],
+    ['GET', 'login', 'Login::view'], // , 'notLoggedIn'], // We need to use a controller because of forward auth
     ['POST', 'login', 'Login::tryLogin', 'notLoggedIn'],
     ['GET', 'logout', 'Login::doLogout', 'loggedIn'],
     ['view', 'users', 'users', 'admin'],

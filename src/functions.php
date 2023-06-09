@@ -4,31 +4,6 @@ include_once __DIR__ . '/../vendor/autoload.php';
 
 const AUTHUM_VERSION = '0.1';
 define('REQUEST_PATH', explode('?', $_SERVER['REQUEST_URI'])[0]);
-define('REQUEST_PAYLOAD', (function () {
-    $result = [];
-
-    foreach ($_GET as $key => $value) {
-        $key = trim($key);
-        $value = trim($value);
-        if (strlen($value) > 0) {
-            $result[$key] = $value;
-        } else {
-            $result[$key] = null;
-        }
-    }
-
-    foreach ($_POST as $key => $value) {
-        $key = trim($key);
-        $value = trim($value);
-        if (strlen($value) > 0) {
-            $result[$key] = $value;
-        } else {
-            $result[$key] = null;
-        }
-    }
-
-    return $result;
-})());
 
 function abort(int $status, string $message = null): never {
     if ($status < 400 || $status > 599) throw new InvalidArgumentException('$status must between 400 and 599, inclusive');
@@ -152,11 +127,11 @@ function doRouting(array $routes): never {
 }
 
 /**
- * @return array|null null if not logged in
+ * @return array empty array is not logged in
  */
-function loggedInUser(): array|null {
-    if (strlen($_COOKIE['authum_session'] ?? '') != 42) return null;
-    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $_COOKIE['authum_session']) == 0) return null;
+function loggedInUser(): array {
+    if (strlen($_COOKIE['authum_session'] ?? '') != 42) return [];
+    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $_COOKIE['authum_session']) == 0) return [];
     DB::query('UPDATE `sessions` SET `last_used_at` = UNIX_TIMESTAMP() WHERE `id` = %s', $_COOKIE['authum_session']);
     return DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) LIMIT 1', $_COOKIE['authum_session']);
 }

@@ -2,11 +2,44 @@
 
 namespace Web;
 
+use Checks;
 use DB;
 
 class ForwardAuth {
     static function handle(): never {
-        if (loggedInUser() === null) abort(401);
+        try {
+            $domainName = explode(':', $_SERVER['HTTP_X_FORWARDED_HOST'])[0];
+            $path = ltrim(explode('?', $_SERVER['HTTP_X_FORWARDED_URI'])[0], '/');
+        } catch (\Exception $e) {
+            abort(422);
+        }
+
+        if ($path == '_authum_login') {
+            $_GET = [];
+            parse_str(explode('?', $_SERVER['HTTP_X_FORWARDED_URI'])[1], $_GET);
+            $token = $_GET['token'] ?? '';
+            if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $token)) {
+                setcookie("authum_session", $token, strtotime('+1 hour'), domain: $domainName);
+                redirect("//$domainName/" . ltrim($_GET['goto'] ?? '', '/'));
+            } else {
+                abort(403, 'bad token');
+            }
+        }
+
+        if (!Checks::isLoggedIn()) {
+            redirect(
+                rtrim($_ENV['APP_URL'], '/') .
+                    '/login?' .
+                    http_build_query([
+                        'from' => $_SERVER['HTTP_X_FORWARDED_HOST'] . '/' . ltrim($_SERVER['HTTP_X_FORWARDED_URI'], '/')
+                    ])
+            );
+        }
+
+        // logout
+        if ($path == DB::queryFirstField('SELECT `logout_path` FROM `services` INNER JOIN `domain_names` ON `domain_names`.`service_id` = `services`.`id` WHERE `domain_name` = %s', $domainName)) {
+            Login::doLogout();
+        }
 
         $aclResult = DB::queryFirstField(
             <<<SQL
@@ -25,12 +58,12 @@ class ForwardAuth {
             loggedInUser()['id'],
             loggedInUser()['id'],
             loggedInUser()['id'],
-            explode(':', $_SERVER['HTTP_X_FORWARDED_HOST'])[0],
-            explode('?', $_SERVER['HTTP_X_FORWARDED_URI'])[0],
+            $domainName,
+            $path,
         ) ?? 'fail';
 
         if ($aclResult == 'fail') {
-            abort(403, '(logged in as ' . loggedInUser()['name'] . ')');
+            abort(403);
         } else {
             exit();
         }

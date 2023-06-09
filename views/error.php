@@ -12,8 +12,12 @@
     <p>
         <?= e($message ?? '') ?>
     </p>
-    <hr>
-    <address>Authum/<?= e(AUTHUM_VERSION) ?></address>
+    <?php if (Checks::isLoggedIn()) : ?>
+        <?php view('logged-in-footer') ?>
+    <?php else : ?>
+        <hr>
+        <address>Authum/<?= e(AUTHUM_VERSION) ?></address>
+    <?php endif ?>
 </body>
 
 </html>

@@ -6,6 +6,6 @@ class Checks {
     }
 
     static function isLoggedIn() {
-        return loggedInUser() != null;
+        return !empty(loggedInUser());
     }
 }
