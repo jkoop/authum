@@ -2,8 +2,8 @@ CREATE TABLE `users` (
     `id` CHAR(26) PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL,
     `password` VARCHAR(255) COLLATE "ascii_bin",
-    `is_admin` BIT NOT NULL,
-    `is_enabled` BIT NOT NULL,
+    `is_admin` ENUM("0", "1") NOT NULL,
+    `is_enabled` ENUM("0", "1") NOT NULL,
     CONSTRAINT user_id_format CHECK (id regexp "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$")
 );
 
@@ -59,10 +59,9 @@ CREATE TABLE `email_verify_tokens` (
 );
 
 CREATE TABLE `email_acl` (
-    `id` CHAR(26) PRIMARY KEY,
-    `order` INTEGER UNSIGNED NOT NULL UNIQUE,
+    `order` INTEGER UNSIGNED PRIMARY KEY,
     `regex` VARCHAR(255) NOT NULL,
-    `if_matches` ENUM("pass", "fail") NOT NULL,
+    `if_matches` ENUM("allow", "deny") NOT NULL,
     `comment` VARCHAR(255) NOT NULL,
     CONSTRAINT email_acl_id_format CHECK (id regexp "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$")
 ) ENGINE MyISAM;
@@ -94,15 +93,17 @@ CREATE TABLE `user_user_group` (
 );
 
 CREATE TABLE `acl` (
-    `id` CHAR(26) NOT NULL UNIQUE,
     `order` INTEGER UNSIGNED PRIMARY KEY,
+    `service_invert` ENUM("0", "1") NOT NULL,
     `service_id` CHAR(26),
     `service_group_id` CHAR(26),
+    `user_invert` ENUM("0", "1") NOT NULL,
     `user_id` CHAR(26),
     `user_group_id` CHAR(26),
-    `domain_name_regex` VARCHAR(255),
+    `method_regex` VARCHAR(255),
     `path_regex` VARCHAR(255),
-    `if_matches` ENUM("pass", "fail") NOT NULL,
+    `domain_name_regex` VARCHAR(255),
+    `if_matches` ENUM("allow", "deny") NOT NULL,
     `comment` VARCHAR(255) NOT NULL,
     CONSTRAINT acl_id_format CHECK (id regexp "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$"),
     FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,

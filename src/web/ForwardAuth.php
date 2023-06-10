@@ -19,7 +19,7 @@ class ForwardAuth {
             parse_str(explode('?', $_SERVER['HTTP_X_FORWARDED_URI'])[1], $_GET);
             $token = $_GET['token'] ?? '';
             if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $token)) {
-                setcookie("authum_session", $token, strtotime('+1 hour'), domain: $domainName);
+                setcookie("authum_session", $token, strtotime('+5 days'), domain: $domainName, httponly: true);
                 redirect("//$domainName/" . ltrim($_GET['goto'] ?? '', '/'));
             } else {
                 abort(403, 'bad token');
@@ -48,8 +48,8 @@ class ForwardAuth {
                     LEFT OUTER JOIN service_service_group ON service_service_group.service_group_id = acl.service_group_id
                     LEFT OUTER JOIN user_user_group ON user_user_group.user_group_id = acl.user_group_id
                 WHERE
-                    (acl.service_id IS NULL OR acl.service_id = %i) AND (acl.service_group_id IS NULL OR service_service_group.service_id = %i)
-                    AND (acl.user_id IS NULL OR acl.user_id = %i) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %i)
+                    acl.service_invert != ((acl.service_id IS NULL OR acl.service_id = %i) AND (acl.service_group_id IS NULL OR service_service_group.service_id = %i))
+                    AND acl.user_invert != ((acl.user_id IS NULL OR acl.user_id = %i) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %i))
                     AND (acl.domain_name_regex IS NULL OR %s REGEXP acl.domain_name_regex)
                     AND (acl.path_regex IS NULL OR %s REGEXP acl.path_regex)
                 ORDER BY `order` ASC

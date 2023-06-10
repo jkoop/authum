@@ -52,6 +52,7 @@ function abort(int $status, string $message = null): never {
     ];
 
     http_response_code($status);
+    loggedInUser(); // to refresh the cookie
     view('error', compact('status', 'defaultMessages', 'message'));
     exit();
 }
@@ -130,10 +131,22 @@ function doRouting(array $routes): never {
  * @return array empty array is not logged in
  */
 function loggedInUser(): array {
-    if (strlen($_COOKIE['authum_session'] ?? '') != 42) return [];
-    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $_COOKIE['authum_session']) == 0) return [];
-    DB::query('UPDATE `sessions` SET `last_used_at` = UNIX_TIMESTAMP() WHERE `id` = %s', $_COOKIE['authum_session']);
-    return DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) LIMIT 1', $_COOKIE['authum_session']);
+    return memo('loggedInUser', function (): array {
+        if (strlen($_COOKIE['authum_session'] ?? '') != 42) return [];
+        if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $_COOKIE['authum_session']) == 0) return [];
+        if (!headers_sent()) setcookie("authum_session", $_COOKIE['authum_session'], strtotime('+5 days'), httponly: true); // refresh the cookie
+        DB::query('UPDATE `sessions` SET `last_used_at` = UNIX_TIMESTAMP() WHERE `id` = %s', $_COOKIE['authum_session']);
+        return DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) LIMIT 1', $_COOKIE['authum_session']);
+    });
+}
+
+/**
+ * Recall or compute
+ * @param $callable callable shouldn't return null
+ */
+function memo(string $key, callable $callable): mixed {
+    static $memos = [];
+    return $memos[$key] ??= $callable();
 }
 
 function view(string $viewPath, array $variables = []): void {
@@ -190,4 +203,12 @@ function doMigrations() {
 
         DB::query('SELECT RELEASE_LOCK("authum_migrating")');
     }
+}
+
+function getTypeFromId(string $id): ?string {
+    if (DB::query('SELECT EXISTS(SELECT * FROM services WHERE id = %s)', $id)) return 'service';
+    if (DB::query('SELECT EXISTS(SELECT * FROM service_groups WHERE id = %s)', $id)) return 'service_group';
+    if (DB::query('SELECT EXISTS(SELECT * FROM users WHERE id = %s)', $id)) return 'user';
+    if (DB::query('SELECT EXISTS(SELECT * FROM user_groups WHERE id = %s)', $id)) return 'user_group';
+    return null;
 }

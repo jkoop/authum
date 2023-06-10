@@ -29,6 +29,12 @@ doRouting([
     ['GET', 'login', 'Login::view'], // , 'notLoggedIn'], // We need to use a controller because of forward auth
     ['POST', 'login', 'Login::tryLogin', 'notLoggedIn'],
     ['GET', 'logout', 'Login::doLogout', 'loggedIn'],
+
+    ['view', 'acl', 'acl', 'admin'],
+    ['POST', 'acl', 'Acl::update', 'admin'],
+
+    ['view', 'services', 'services', 'admin'],
+
     ['view', 'users', 'users', 'admin'],
     ['GET', 'user', 'User::view', 'admin'],
 ]);

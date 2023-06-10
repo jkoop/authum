@@ -12,6 +12,8 @@
 
     <?php if (Checks::isAdmin()) : ?>
         <ul>
+            <li><a href="/acl">ACL</a></li>
+            <li><a href="/services">Services</a></li>
             <li><a href="/users">Users</a></li>
         </ul>
     <?php endif ?>
