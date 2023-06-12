@@ -2,8 +2,23 @@
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-const AUTHUM_VERSION = '0.1';
+const AUTHUM_VERSION = 'dev';
 define('REQUEST_PATH', explode('?', $_SERVER['REQUEST_URI'])[0]);
+
+function config(string $key): string|int|float|null {
+    return match ($key) {
+        'app.env' => trim($_ENV['APP_ENV']),
+        'app.url' => rtrim($_ENV['APP_URL'], '/'),
+        'db.host' => trim($_ENV['DB_HOST']),
+        'db.post' => (int) $_ENV['DB_PORT'],
+        'db.database' => trim($_ENV['DB_DATABASE']),
+        'db.username' => trim($_ENV['DB_USERNAME']),
+        'db.password' => trim($_ENV['DB_PASSWORD']),
+        'db.pruning-lottery' => (int) $_ENV['DB_PRUNING_LOTTERY'],
+        'session.timeout' => $_ENV['SESSION_TIMEOUT'] * 60,
+        default => null,
+    };
+}
 
 function abort(int $status, string $message = null): never {
     if ($status < 400 || $status > 599) throw new InvalidArgumentException('$status must between 400 and 599, inclusive');
@@ -133,20 +148,22 @@ function doRouting(array $routes): never {
 function loggedInUser(): array {
     return memo('loggedInUser', function (): array {
         if (strlen($_COOKIE['authum_session'] ?? '') != 42) return [];
-        if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $_COOKIE['authum_session']) == 0) return [];
-        if (!headers_sent()) setcookie("authum_session", $_COOKIE['authum_session'], strtotime('+5 days'), httponly: true); // refresh the cookie
+        if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s AND last_used_at > %i)', $_COOKIE['authum_session'], time() - config('session.timeout')) == 0) return [];
+        if (!headers_sent()) setcookie("authum_session", $_COOKIE['authum_session'], time() + config('session.timeout'), httponly: true); // refresh the cookie
         DB::query('UPDATE `sessions` SET `last_used_at` = UNIX_TIMESTAMP() WHERE `id` = %s', $_COOKIE['authum_session']);
-        return DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) LIMIT 1', $_COOKIE['authum_session']);
+        return DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) AND `is_enabled` = 1 LIMIT 1', $_COOKIE['authum_session']);
     });
 }
 
 /**
  * Recall or compute
- * @param $callable callable shouldn't return null
+ * @param callable $callable shouldn't return null
  */
 function memo(string $key, callable $callable): mixed {
     static $memos = [];
-    return $memos[$key] ??= $callable();
+    if (isset($memos[$key]) && !is_null($memos[$key])) return $memos[$key];
+    $memos[$key] = $callable();
+    return $memos[$key];
 }
 
 function view(string $viewPath, array $variables = []): void {
@@ -205,10 +222,15 @@ function doMigrations() {
     }
 }
 
+function doDbPruning(): void {
+    if (random_int(1, config('db.pruning-lottery')) != 1) return;
+    DB::query('DELETE FROM `sessions` WHERE last_used_at < %i', time() - config('session.timeout'));
+}
+
 function getTypeFromId(string $id): ?string {
-    if (DB::query('SELECT EXISTS(SELECT * FROM services WHERE id = %s)', $id)) return 'service';
-    if (DB::query('SELECT EXISTS(SELECT * FROM service_groups WHERE id = %s)', $id)) return 'service_group';
-    if (DB::query('SELECT EXISTS(SELECT * FROM users WHERE id = %s)', $id)) return 'user';
-    if (DB::query('SELECT EXISTS(SELECT * FROM user_groups WHERE id = %s)', $id)) return 'user_group';
+    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM services WHERE id = %s)', $id)) return 'service';
+    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM service_groups WHERE id = %s)', $id)) return 'service_group';
+    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM users WHERE id = %s)', $id)) return 'user';
+    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM user_groups WHERE id = %s)', $id)) return 'user_group';
     return null;
 }

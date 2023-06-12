@@ -19,7 +19,7 @@ class ForwardAuth {
             parse_str(explode('?', $_SERVER['HTTP_X_FORWARDED_URI'])[1], $_GET);
             $token = $_GET['token'] ?? '';
             if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $token)) {
-                setcookie("authum_session", $token, strtotime('+5 days'), domain: $domainName, httponly: true);
+                setcookie("authum_session", $token, time() + config('session.timeout'), domain: $domainName, httponly: true);
                 redirect("//$domainName/" . ltrim($_GET['goto'] ?? '', '/'));
             } else {
                 abort(403, 'bad token');
@@ -28,7 +28,7 @@ class ForwardAuth {
 
         if (!Checks::isLoggedIn()) {
             redirect(
-                rtrim($_ENV['APP_URL'], '/') .
+                config('app.url') .
                     '/login?' .
                     http_build_query([
                         'from' => $_SERVER['HTTP_X_FORWARDED_HOST'] . '/' . ltrim($_SERVER['HTTP_X_FORWARDED_URI'], '/')
@@ -36,8 +36,10 @@ class ForwardAuth {
             );
         }
 
+        $service = DB::queryFirstRow('SELECT `id`, `logout_path` FROM `services` INNER JOIN `domain_names` ON `domain_names`.`service_id` = `services`.`id` WHERE `domain_name` = %s', $domainName);
+
         // logout
-        if ($path == DB::queryFirstField('SELECT `logout_path` FROM `services` INNER JOIN `domain_names` ON `domain_names`.`service_id` = `services`.`id` WHERE `domain_name` = %s', $domainName)) {
+        if ($path == $service['logout_path']) {
             Login::doLogout();
         }
 
@@ -48,24 +50,24 @@ class ForwardAuth {
                     LEFT OUTER JOIN service_service_group ON service_service_group.service_group_id = acl.service_group_id
                     LEFT OUTER JOIN user_user_group ON user_user_group.user_group_id = acl.user_group_id
                 WHERE
-                    acl.service_invert != ((acl.service_id IS NULL OR acl.service_id = %i) AND (acl.service_group_id IS NULL OR service_service_group.service_id = %i))
-                    AND acl.user_invert != ((acl.user_id IS NULL OR acl.user_id = %i) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %i))
+                    service_invert = ((acl.service_id IS NULL OR acl.service_id = %s) AND (acl.service_group_id IS NULL OR service_service_group.service_id = %s))
+                    AND user_invert = ((acl.user_id IS NULL OR acl.user_id = %s) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %s))
                     AND (acl.domain_name_regex IS NULL OR %s REGEXP acl.domain_name_regex)
                     AND (acl.path_regex IS NULL OR %s REGEXP acl.path_regex)
                 ORDER BY `order` ASC
             SQL,
-            loggedInUser()['id'],
-            loggedInUser()['id'],
+            $service['id'],
+            $service['id'],
             loggedInUser()['id'],
             loggedInUser()['id'],
             $domainName,
             $path,
-        ) ?? 'fail';
+        );
 
-        if ($aclResult == 'fail') {
-            abort(403);
-        } else {
+        if ($aclResult == 'allow') {
             exit();
+        } else {
+            abort(403);
         }
     }
 }

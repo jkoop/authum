@@ -14,7 +14,9 @@
         <ul>
             <li><a href="/acl">ACL</a></li>
             <li><a href="/services">Services</a></li>
+            <li><a href="/service-groups">Service Groups</a></li>
             <li><a href="/users">Users</a></li>
+            <li><a href="/user-groups">User Groups</a></li>
         </ul>
     <?php endif ?>
 

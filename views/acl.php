@@ -26,7 +26,7 @@
         <a href="/">Home</a>
     </p>
 
-    <p>When a forward auth request is made, the rules in this ACL are compared one-by-one in order from top to bottom. The first rule to match determines the allowed-ness (allow/deny). Paths never begin with a a slash.</p>
+    <p>When a forward auth request is made, the rules in this ACL are compared one-by-one in order from top to bottom. The first rule to match determines the allowed-ness (allow/deny). Paths never begin with a slash.</p>
 
     <form method="post" onSubmit="setTheFieldNames()">
         <table>

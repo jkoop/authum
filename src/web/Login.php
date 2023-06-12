@@ -29,10 +29,11 @@ class Login {
             SELECT `id`, `password`
             FROM `users`
             INNER JOIN `email_addresses` ON `email_addresses`.`user_id` = `users`.`id`
-            WHERE `email_address` = %s;
+            WHERE `email_address` = %s
+                AND `is_enabled` = 1
         SQL, $email);
 
-        if (!$user['password']) addError('no such user or bad password');
+        if (!isset($user['password'])) addError('no such user or bad password');
         responseFormValidationFailMaybe();
         if (!password_verify($password, $user['password'])) addError('no such user or bad password');
         responseFormValidationFailMaybe();
@@ -40,7 +41,7 @@ class Login {
         $sessionId = Ulid::generate() . Base32::encodeByteStrToCrockford(random_bytes(10));
         DB::query('INSERT INTO `sessions` (`id`, `user_id`, `created_at`, `last_used_at`) VALUES (%s, %s, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())', $sessionId, $user['id']);
 
-        setcookie("authum_session", $sessionId, strtotime('+5 days'), httponly: true);
+        setcookie("authum_session", $sessionId, time() + config('session.timeout'), httponly: true);
 
         if ($_GET['from'] ?? '' != '') {
             $domainName = explode('/', str_replace(':', '/', $_GET['from']))[0];
@@ -60,6 +61,6 @@ class Login {
     static function doLogout(): never {
         DB::query('DELETE FROM `sessions` WHERE `id` = %s', $_COOKIE['authum_session']);
         setcookie("authum_session", '', 0, httponly: true);
-        redirect(rtrim($_ENV['APP_URL']) . '/login');
+        redirect(config('app.url') . '/login');
     }
 }

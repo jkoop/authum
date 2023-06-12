@@ -17,7 +17,7 @@ DB::query('INSERT INTO `users` VALUES (%s, "Administrator", %s, 1, 1)', $userId,
 DB::query('INSERT INTO `email_addresses` VALUES ("admin@example.com", %s)', $userId);
 DB::query('INSERT INTO `services` VALUES (%s, "Who Am I", "logout")', $serviceId);
 DB::query('INSERT INTO `domain_names` VALUES ("whoami.localhost", %s)', $serviceId);
-DB::query('INSERT INTO `email_acl` VALUES (%s, 0, ".*", "pass", "Allow every email address")', Ulid::generate());
+DB::query('INSERT INTO `email_acl` VALUES (0, ".*", "allow", "Allow every email address")');
 
 $userGroupId = Ulid::generate();
 DB::query('INSERT INTO `user_groups` VALUES (%s, "My first group of users")', $userGroupId);
