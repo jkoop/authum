@@ -41,7 +41,7 @@ class Login {
         $sessionId = Ulid::generate() . Base32::encodeByteStrToCrockford(random_bytes(10));
         DB::query('INSERT INTO `sessions` (`id`, `user_id`, `created_at`, `last_used_at`) VALUES (%s, %s, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())', $sessionId, $user['id']);
 
-        setcookie("authum_session", $sessionId, time() + config('session.timeout'), httponly: true);
+        setcookie("authum_session", $sessionId, time() + config('session.timeout'), path: '/', httponly: true);
 
         if ($_GET['from'] ?? '' != '') {
             $domainName = explode('/', str_replace(':', '/', $_GET['from']))[0];
@@ -60,7 +60,7 @@ class Login {
 
     static function doLogout(): never {
         DB::query('DELETE FROM `sessions` WHERE `id` = %s', $_COOKIE['authum_session']);
-        setcookie("authum_session", '', 0, httponly: true);
+        setcookie("authum_session", '', 0, path: '/', httponly: true);
         redirect(config('app.url') . '/login');
     }
 }

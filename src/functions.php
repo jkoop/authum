@@ -149,7 +149,7 @@ function loggedInUser(): array {
     return memo('loggedInUser', function (): array {
         if (strlen($_COOKIE['authum_session'] ?? '') != 42) return [];
         if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s AND last_used_at > %i)', $_COOKIE['authum_session'], time() - config('session.timeout')) == 0) return [];
-        if (!headers_sent()) setcookie("authum_session", $_COOKIE['authum_session'], time() + config('session.timeout'), httponly: true); // refresh the cookie
+        if (!headers_sent()) setcookie("authum_session", $_COOKIE['authum_session'], time() + config('session.timeout'), path: '/', httponly: true); // refresh the cookie
         DB::query('UPDATE `sessions` SET `last_used_at` = UNIX_TIMESTAMP() WHERE `id` = %s', $_COOKIE['authum_session']);
         return DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) AND `is_enabled` = 1 LIMIT 1', $_COOKIE['authum_session']);
     });
