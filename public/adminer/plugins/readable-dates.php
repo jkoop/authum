@@ -61,7 +61,7 @@ class AdminerReadableDates {
                                     'Nov',
                                     'Dec',
                                 ][date.getMonth()] + ' ' +
-                                ("" + date.getDay()).padStart(2, "0") + ', ' +
+                                ("" + date.getDate()).padStart(2, "0") + ', ' +
                                 date.getFullYear() + ', ' +
                                 ("" + (date.getHours() % 12 == 0 ? 12 : date.getHours() % 12)).padStart(2, "0") + ':' +
                                 ("" + date.getMinutes()).padStart(2, "0") + ':' +

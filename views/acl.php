@@ -7,6 +7,11 @@
     <title>Access-Control List - Authum</title>
     <script>
         function setTheFieldNames() {
+            document.querySelectorAll('input[name=delete]').forEach(input => {
+                if (!input.checked) return;
+                input.closest('tr').remove();
+            });
+
             let counter = 0;
             document.querySelectorAll('tbody tr').forEach(tr => {
                 tr.querySelectorAll('select, input').forEach(field => {
@@ -16,6 +21,45 @@
                 });
                 counter++;
             });
+        }
+
+        function addNew() {
+            let newTr = document.querySelector('tbody tr:last-of-type').cloneNode(true);
+            newTr.querySelectorAll('select, input, button').forEach(field => {
+                field.removeAttribute('disabled');
+            })
+            document.querySelector('tbody').insertBefore(newTr, document.querySelector('tbody tr:last-of-type'));
+        }
+
+        function moveUp(button) {
+            let tr = button.closest('tr');
+            let previous = tr.previousSibling;
+
+            while ((previous.tagName ?? '') != 'TR') {
+                previous = previous.previousSibling;
+                if (previous == null) return;
+            }
+
+            document.querySelector('tbody').insertBefore(tr, previous);
+        }
+
+        function moveDown(button) {
+            let tr = button.closest('tr');
+            let next = tr.nextSibling;
+
+            while ((next.tagName ?? '') != 'TR') {
+                next = next.nextSibling;
+                if (next == null) return;
+            }
+
+            next = next.nextSibling;
+
+            while ((next.tagName ?? '') != 'TR') {
+                next = next.nextSibling;
+                if (next == null) return;
+            }
+
+            document.querySelector('tbody').insertBefore(tr, next);
         }
     </script>
 </head>
@@ -39,6 +83,7 @@
                     <th>Path Regex</th>
                     <th>If Matches</th>
                     <th>Comment</th>
+                    <td><button type="button" onclick="addNew()">add new</button></td>
                 </tr>
             </thead>
             <tbody>
@@ -78,15 +123,20 @@
                                 <option <?= $rule['if_matches'] == 'deny' ? 'selected' : '' ?>>deny</option>
                             </select></td>
                         <td><input name="comment" maxlength="255" value="<?= $rule['comment'] ?>" /></td>
+                        <td>
+                            <button type="button" onclick="moveUp(this)">^</button>
+                            <button type="button" onclick="moveDown(this)">v</button>
+                            <label><input name="delete" type="checkbox" /> delete?</label>
+                        </td>
                     </tr>
                 <?php endforeach ?>
                 <tr>
-                    <td><select disabled>
-                            <option value="0">Is</option>
+                    <td><select name="service_invert" disabled>
+                            <option value="0" selected>Is</option>
                             <option value="1">Is not</option>
                         </select></td>
-                    <td><select disabled>
-                            <option selected><i>-- any --</i></option>
+                    <td><select name="service" disabled>
+                            <option value=""><i>-- any --</i></option>
                             <optgroup label="groups">
                                 <?php view('options-service-group') ?>
                             </optgroup>
@@ -94,12 +144,12 @@
                                 <?php view('options-service') ?>
                             </optgroup>
                         </select></td>
-                    <td><select disabled>
-                            <option value="0">Is</option>
+                    <td><select name="user_invert" disabled>
+                            <option value="0" selected>Is</option>
                             <option value="1">Is not</option>
                         </select></td>
-                    <td><select disabled>
-                            <option selected><i>-- any --</i></option>
+                    <td><select name="user" disabled>
+                            <option value=""><i>-- any --</i></option>
                             <optgroup label="groups">
                                 <?php view('options-user-group') ?>
                             </optgroup>
@@ -107,14 +157,19 @@
                                 <?php view('options-user') ?>
                             </optgroup>
                         </select></td>
-                    <td><input disabled /></td>
-                    <td><input disabled /></td>
-                    <td><input disabled /></td>
-                    <td><select disabled>
+                    <td><input name="method_regex" maxlength="255" disabled /></td>
+                    <td><input name="domain_name_regex" maxlength="255" disabled /></td>
+                    <td><input name="path_regex" maxlength="255" disabled /></td>
+                    <td><select name="if_matches" disabled>
                             <option>allow</option>
                             <option selected>deny</option>
                         </select></td>
-                    <td><input value="deny all" disabled /></td>
+                    <td><input name="comment" maxlength="255" disabled /></td>
+                    <td>
+                        <button type="button" onclick="moveUp(this)" disabled>^</button>
+                        <button type="button" onclick="moveDown(this)" disabled>v</button>
+                        <label><input name="delete" type="checkbox" disabled /> delete?</label>
+                    </td>
                 </tr>
             </tbody>
         </table>

@@ -50,8 +50,8 @@ class ForwardAuth {
                     LEFT OUTER JOIN service_service_group ON service_service_group.service_group_id = acl.service_group_id
                     LEFT OUTER JOIN user_user_group ON user_user_group.user_group_id = acl.user_group_id
                 WHERE
-                    service_invert = ((acl.service_id IS NULL OR acl.service_id = %s) AND (acl.service_group_id IS NULL OR service_service_group.service_id = %s))
-                    AND user_invert = ((acl.user_id IS NULL OR acl.user_id = %s) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %s))
+                    service_invert != ((acl.service_id IS NULL OR acl.service_id = %s) AND (acl.service_group_id IS NULL OR service_service_group.service_id = %s))
+                    AND user_invert != ((acl.user_id IS NULL OR acl.user_id = %s) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %s))
                     AND (acl.domain_name_regex IS NULL OR %s REGEXP acl.domain_name_regex)
                     AND (acl.path_regex IS NULL OR %s REGEXP acl.path_regex)
                 ORDER BY `order` ASC
