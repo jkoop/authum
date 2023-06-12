@@ -81,6 +81,7 @@
                     <th>Method Regex</th>
                     <th>Domain Name Regex</th>
                     <th>Path Regex</th>
+                    <th>Query String Regex</th>
                     <th>If Matches</th>
                     <th>Comment</th>
                     <td><button type="button" onclick="addNew()">add new</button></td>
@@ -118,6 +119,7 @@
                         <td><input name="method_regex" maxlength="255" value="<?= $rule['method_regex'] ?>" /></td>
                         <td><input name="domain_name_regex" maxlength="255" value="<?= $rule['domain_name_regex'] ?>" /></td>
                         <td><input name="path_regex" maxlength="255" value="<?= $rule['path_regex'] ?>" /></td>
+                        <td><input name="query_string_regex" maxlength="255" value="<?= $rule['query_string_regex'] ?>" /></td>
                         <td><select name="if_matches">
                                 <option <?= $rule['if_matches'] == 'allow' ? 'selected' : '' ?>>allow</option>
                                 <option <?= $rule['if_matches'] == 'deny' ? 'selected' : '' ?>>deny</option>
@@ -160,6 +162,7 @@
                     <td><input name="method_regex" maxlength="255" disabled /></td>
                     <td><input name="domain_name_regex" maxlength="255" disabled /></td>
                     <td><input name="path_regex" maxlength="255" disabled /></td>
+                    <td><input name="query_string_regex" maxlength="255" disabled /></td>
                     <td><select name="if_matches" disabled>
                             <option>allow</option>
                             <option selected>deny</option>

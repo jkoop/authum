@@ -10,6 +10,7 @@ class ForwardAuth {
         try {
             $domainName = explode(':', $_SERVER['HTTP_X_FORWARDED_HOST'])[0];
             $path = ltrim(explode('?', $_SERVER['HTTP_X_FORWARDED_URI'])[0], '/');
+            $queryString = explode('?', $_SERVER['HTTP_X_FORWARDED_URI'])[1] ?? '';
         } catch (\Exception $e) {
             abort(422);
         }
@@ -54,6 +55,7 @@ class ForwardAuth {
                     AND user_invert != ((acl.user_id IS NULL OR acl.user_id = %s) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %s))
                     AND (acl.domain_name_regex IS NULL OR %s REGEXP acl.domain_name_regex)
                     AND (acl.path_regex IS NULL OR %s REGEXP acl.path_regex)
+                    AND (acl.query_string_regex IS NULL OR %s REGEXP acl.query_string_regex)
                 ORDER BY `order` ASC
             SQL,
             $service['id'],
@@ -62,6 +64,7 @@ class ForwardAuth {
             loggedInUser()['id'],
             $domainName,
             $path,
+            $queryString,
         );
 
         if ($aclResult == 'allow') {
