@@ -5,6 +5,13 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title>Access-Control List - Authum</title>
+    <style>
+        thead th {
+            border-bottom: 1px solid black;
+            border-left: 1px solid black;
+            border-right: 1px solid black;
+        }
+    </style>
     <script>
         function setTheFieldNames() {
             document.querySelectorAll('input[name=delete]').forEach(input => {
@@ -78,10 +85,9 @@
                 <tr>
                     <th colspan="2">Service(s)</th>
                     <th colspan="2">User(s)</th>
-                    <th>Method Regex</th>
-                    <th>Domain Name Regex</th>
-                    <th>Path Regex</th>
-                    <th>Query String Regex</th>
+                    <th colspan="2">Request Method <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods" target="_blank">(?)</a></th>
+                    <th colspan="2">Path</th>
+                    <th colspan="2">Query String <a href="https://en.wikipedia.org/wiki/Query_string" target="_blank">(?)</a></th>
                     <th>If Matches</th>
                     <th>Comment</th>
                     <td><button type="button" onclick="addNew()">add new</button></td>
@@ -116,14 +122,28 @@
                                     <?php view('options-user', ['selected' => $rule['user_id']]) ?>
                                 </optgroup>
                             </select></td>
-                        <td><input name="method_regex" maxlength="255" value="<?= $rule['method_regex'] ?>" /></td>
-                        <td><input name="domain_name_regex" maxlength="255" value="<?= $rule['domain_name_regex'] ?>" /></td>
-                        <td><input name="path_regex" maxlength="255" value="<?= $rule['path_regex'] ?>" /></td>
-                        <td><input name="query_string_regex" maxlength="255" value="<?= $rule['query_string_regex'] ?>" /></td>
+                        <td><select name="method_regex_invert">
+                                <option value="0" <?= $rule['method_regex_invert'] ? '' : 'selected' ?>>Matches</option>
+                                <option value="1" <?= $rule['method_regex_invert'] ? 'selected' : '' ?>>Doesn't match</option>
+                            </select></td>
+                        <td><input name="method_regex" maxlength="255" value="<?= $rule['method_regex'] ?>" placeholder="mysql regex" /></td>
+                        <td><select name="path_regex_invert">
+                                <option value="0" <?= $rule['path_regex_invert'] ? '' : 'selected' ?>>Matches</option>
+                                <option value="1" <?= $rule['path_regex_invert'] ? 'selected' : '' ?>>Doesn't match</option>
+                            </select>
+                        </td>
+                        <td><input name="path_regex" maxlength="255" value="<?= $rule['path_regex'] ?>" placeholder="mysql regex" /></td>
+                        <td><select name="query_string_regex_invert">
+                                <option value="0" <?= $rule['query_string_regex_invert'] ? '' : 'selected' ?>>Matches</option>
+                                <option value="1" <?= $rule['query_string_regex_invert'] ? 'selected' : '' ?>>Doesn't match</option>
+                            </select>
+                        </td>
+                        <td><input name="query_string_regex" maxlength="255" value="<?= $rule['query_string_regex'] ?>" placeholder="mysql regex" /></td>
                         <td><select name="if_matches">
                                 <option <?= $rule['if_matches'] == 'allow' ? 'selected' : '' ?>>allow</option>
                                 <option <?= $rule['if_matches'] == 'deny' ? 'selected' : '' ?>>deny</option>
-                            </select></td>
+                            </select>
+                        </td>
                         <td><input name="comment" maxlength="255" value="<?= $rule['comment'] ?>" /></td>
                         <td>
                             <button type="button" onclick="moveUp(this)">^</button>
@@ -134,7 +154,7 @@
                 <?php endforeach ?>
                 <tr>
                     <td><select name="service_invert" disabled>
-                            <option value="0" selected>Is</option>
+                            <option value="0">Is</option>
                             <option value="1">Is not</option>
                         </select></td>
                     <td><select name="service" disabled>
@@ -147,7 +167,7 @@
                             </optgroup>
                         </select></td>
                     <td><select name="user_invert" disabled>
-                            <option value="0" selected>Is</option>
+                            <option value="0">Is</option>
                             <option value="1">Is not</option>
                         </select></td>
                     <td><select name="user" disabled>
@@ -159,14 +179,28 @@
                                 <?php view('options-user') ?>
                             </optgroup>
                         </select></td>
-                    <td><input name="method_regex" maxlength="255" disabled /></td>
-                    <td><input name="domain_name_regex" maxlength="255" disabled /></td>
-                    <td><input name="path_regex" maxlength="255" disabled /></td>
-                    <td><input name="query_string_regex" maxlength="255" disabled /></td>
+                    <td><select name="method_regex_invert" disabled>
+                            <option value="0">Matches</option>
+                            <option value="1">Doesn't match</option>
+                        </select></td>
+                    <td><input name="method_regex" maxlength="255" placeholder="mysql regex" disabled /></td>
+                    <td><select name="path_regex_invert" disabled>
+                            <option value="0">Matches</option>
+                            <option value="1">Doesn't match</option>
+                        </select>
+                    </td>
+                    <td><input name="path_regex" maxlength="255" placeholder="mysql regex" disabled /></td>
+                    <td><select name="query_string_regex_invert" disabled>
+                            <option value="0">Matches</option>
+                            <option value="1">Doesn't match</option>
+                        </select>
+                    </td>
+                    <td><input name="query_string_regex" maxlength="255" placeholder="mysql regex" disabled /></td>
                     <td><select name="if_matches" disabled>
                             <option>allow</option>
                             <option selected>deny</option>
-                        </select></td>
+                        </select>
+                    </td>
                     <td><input name="comment" maxlength="255" disabled /></td>
                     <td>
                         <button type="button" onclick="moveUp(this)" disabled>^</button>

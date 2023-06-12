@@ -28,7 +28,6 @@ class Acl {
             }
 
             $rule['method_regex'] = substr($rule['method_regex'], 0, 255);
-            $rule['domain_name_regex'] = substr($rule['domain_name_regex'], 0, 255);
             $rule['path_regex'] = substr($rule['path_regex'], 0, 255);
             $rule['query_string_regex'] = substr($rule['query_string_regex'], 0, 255);
             $rule['comment'] = substr($rule['comment'], 0, 255);
@@ -42,10 +41,12 @@ class Acl {
                 'user_invert' => $rule['user_invert'],
                 'user_id' => $rule['user_id'] ?? null,
                 'user_group_id' => $rule['user_group_id'] ?? null,
+                'method_regex_invert' => $rule['method_regex_invert'],
                 'method_regex' => $rule['method_regex'] != '' ? $rule['method_regex'] : null,
+                'path_regex_invert' => $rule['path_regex_invert'],
                 'path_regex' => $rule['path_regex'] != '' ? $rule['path_regex'] : null,
+                'query_string_regex_invert' => $rule['query_string_regex_invert'],
                 'query_string_regex' => $rule['query_string_regex'] != '' ? $rule['query_string_regex'] : null,
-                'domain_name_regex' => $rule['domain_name_regex'] != '' ? $rule['domain_name_regex'] : null,
                 'if_matches' => $rule['if_matches'],
                 'comment' => $rule['comment'],
             ]);

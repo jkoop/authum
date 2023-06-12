@@ -56,10 +56,9 @@ class ForwardAuth {
                 WHERE
                     service_invert != ((acl.service_id IS NULL OR acl.service_id = %s) AND (acl.service_group_id IS NULL OR service_service_group.service_id = %s))
                     AND user_invert != ((acl.user_id IS NULL OR acl.user_id = %s) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %s))
-                    AND (acl.method_regex IS NULL OR %s REGEXP acl.method_regex)
-                    AND (acl.domain_name_regex IS NULL OR %s REGEXP acl.domain_name_regex)
-                    AND (acl.path_regex IS NULL OR %s REGEXP acl.path_regex)
-                    AND (acl.query_string_regex IS NULL OR %s REGEXP acl.query_string_regex)
+                    AND method_regex_invert != ((acl.method_regex IS NULL OR %s REGEXP acl.method_regex))
+                    AND path_regex_invert != ((acl.path_regex IS NULL OR %s REGEXP acl.path_regex))
+                    AND query_string_regex_invert != ((acl.query_string_regex IS NULL OR %s REGEXP acl.query_string_regex))
                 ORDER BY `order` ASC
             SQL,
             $service['id'],
@@ -67,7 +66,6 @@ class ForwardAuth {
             loggedInUser()['id'],
             loggedInUser()['id'],
             $method,
-            $domainName,
             $path,
             $queryString,
         );
