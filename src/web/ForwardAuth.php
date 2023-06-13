@@ -23,8 +23,8 @@ class ForwardAuth {
             parse_str(explode('?', $_SERVER['HTTP_X_FORWARDED_URI'])[1], $_GET);
             $token = $_GET['token'] ?? '';
             if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s)', $token)) {
-                setcookie("authum_session", $token, time() + config('session.timeout'), domain: $domainName, httponly: true);
-                setcookie("authum_session", $token, time() + config('session.timeout'), domain: '.' . $domainName, httponly: true);
+                setcookie("authum_session", $token, time() + config('session.timeout'), path: '/', domain: $domainName, httponly: true);
+                setcookie("authum_session", $token, time() + config('session.timeout'), path: '/', domain: '.' . $domainName, httponly: true);
                 redirect("//$domainName/" . ltrim($_GET['goto'] ?? '', '/'));
             } else {
                 abort(403, 'bad token');
