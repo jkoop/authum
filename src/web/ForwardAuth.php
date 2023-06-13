@@ -32,13 +32,18 @@ class ForwardAuth {
         }
 
         if (!Checks::isLoggedIn()) {
-            redirect(
-                config('app.url') .
-                    '/login?' .
-                    http_build_query([
-                        'from' => $_SERVER['HTTP_X_FORWARDED_HOST'] . '/' . ltrim($_SERVER['HTTP_X_FORWARDED_URI'], '/')
-                    ])
-            );
+            if (str_contains($_SERVER['HTTP_USER_AGENT'] ?? '', 'Mozilla/5.0')) { // web browser
+                redirect(
+                    config('app.url') .
+                        '/login?' .
+                        http_build_query([
+                            'from' => $_SERVER['HTTP_X_FORWARDED_HOST'] . '/' . ltrim($_SERVER['HTTP_X_FORWARDED_URI'], '/')
+                        ])
+                );
+            } else { // curl or a file browser trying to get WebDAV
+                header('WWW-Authenticate: Basic realm="' . parse_url(config('app.url'), PHP_URL_HOST) . '"');
+                abort(401);
+            }
         }
 
         $service = DB::queryFirstRow('SELECT `id`, `logout_path` FROM `services` INNER JOIN `domain_names` ON `domain_names`.`service_id` = `services`.`id` WHERE `domain_name` = %s', $domainName);
