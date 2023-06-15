@@ -5,14 +5,12 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title><?= e($serviceGroup['name']) ?> - Service Groups - Authum</title>
+    <link rel="stylesheet" href="/main.css" />
 </head>
 
 <body>
     <h1><?= e($serviceGroup['name']) ?></h1>
-    <p>
-        <a href="/">Home</a>
-        <a href="/service-groups">Service Groups</a>
-    </p>
+    <?php view('navigation') ?>
 
     <h2>Services</h2>
 

@@ -5,13 +5,12 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title>Services - Authum</title>
+    <link rel="stylesheet" href="/main.css" />
 </head>
 
 <body>
     <h1>Services</h1>
-    <p>
-        <a href="/">Home</a>
-    </p>
+    <?php view('navigation') ?>
 
     <ul>
         <?php foreach (DB::query('SELECT id, `name` FROM services ORDER BY `name`') as $service) : ?>

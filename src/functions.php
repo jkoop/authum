@@ -153,7 +153,7 @@ function loggedInUser(): array {
         $email = $_SERVER["PHP_AUTH_USER"] ?? null;
         $password = $_SERVER["PHP_AUTH_PW"] ?? null;
 
-        if (strlen($sessionId) != 42) $sessionId = null;
+        if (strlen($sessionId ?? '') != 42) $sessionId = null;
 
         if (!is_null($sessionId) && DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s AND last_used_at > %i)', $sessionId, time() - config('session.timeout')) == 1) {
             if (!headers_sent()) setcookie("authum_session", $_COOKIE['authum_session'], time() + config('session.timeout'), path: '/', httponly: true); // refresh the cookie
@@ -162,7 +162,7 @@ function loggedInUser(): array {
         }
 
         if (empty($user) && !empty($email) && !empty($password)) {
-            $user = DB::queryFirstRow('SELECT users.* FROM users INNER JOIN email_addresses ON email_addresses.user_id = users.id WHERE email_address = %s', $email);
+            $user = DB::queryFirstRow('SELECT users.* FROM users INNER JOIN email_addresses ON email_addresses.user_id = users.id WHERE email_address = %s', $email) ?? [];
             if (isset($user['password']) && !password_verify($password, $user['password'])) $user = [];
         }
 
@@ -172,11 +172,11 @@ function loggedInUser(): array {
 
 /**
  * Recall or compute
- * @param callable $callable shouldn't return null
+ * @param callable
  */
 function memo(string $key, callable $callable): mixed {
     static $memos = [];
-    if (isset($memos[$key]) && !is_null($memos[$key])) return $memos[$key];
+    if (isset($memos[$key])) return $memos[$key];
     $memos[$key] = $callable();
     return $memos[$key];
 }

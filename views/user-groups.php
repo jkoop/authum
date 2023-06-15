@@ -5,13 +5,12 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title>User Groups - Authum</title>
+    <link rel="stylesheet" href="/main.css" />
 </head>
 
 <body>
     <h1>User Groups</h1>
-    <p>
-        <a href="/">Home</a>
-    </p>
+    <?php view('navigation') ?>
 
     <ul>
         <?php foreach (DB::query('SELECT id, `name` FROM user_groups ORDER BY `name`') as $userGroup) : ?>

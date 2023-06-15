@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title>Access-Control List - Authum</title>
+    <link rel="stylesheet" href="/main.css" />
     <style>
         thead th {
             border-left: 1px solid black;
@@ -72,9 +73,7 @@
 
 <body>
     <h1>Access-Control List</h1>
-    <p>
-        <a href="/">Home</a>
-    </p>
+    <?php view('navigation') ?>
 
     <p>When a forward auth request is made, the rules in this ACL are compared one-by-one in order from top to bottom. The first rule to match determines the allowed-ness (allow/deny). The method "HEAD" will be processed as if it is "GET". Paths never begin with a slash.</p>
 

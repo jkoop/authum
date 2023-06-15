@@ -5,20 +5,12 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title><?= e($user['name']) ?> - Users - Authum</title>
-    <style>
-        fieldset {
-            width: fit-content;
-            margin-block: 1rem;
-        }
-    </style>
+    <link rel="stylesheet" href="/main.css" />
 </head>
 
 <body>
     <h1><?= e($user['name']) ?></h1>
-    <p>
-        <a href="/">Home</a>
-        <a href="/users">Users</a>
-    </p>
+    <?php view('navigation') ?>
 
     <form method="post">
         <fieldset>

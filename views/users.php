@@ -5,13 +5,12 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title>Users - Authum</title>
+    <link rel="stylesheet" href="/main.css" />
 </head>
 
 <body>
     <h1>Users</h1>
-    <p>
-        <a href="/">Home</a>
-    </p>
+    <?php view('navigation') ?>
 
     <ul>
         <?php foreach (DB::query('SELECT id, `name` FROM users ORDER BY `name`') as $user) : ?>

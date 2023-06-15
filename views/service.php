@@ -5,14 +5,12 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title><?= e($service['name']) ?> - Services - Authum</title>
+    <link rel="stylesheet" href="/main.css" />
 </head>
 
 <body>
     <h1><?= e($service['name']) ?></h1>
-    <p>
-        <a href="/">Home</a>
-        <a href="/services">Services</a>
-    </p>
+    <?php view('navigation') ?>
 
     <h2>Domain Names</h2>
 

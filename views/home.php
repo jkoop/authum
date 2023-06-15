@@ -5,20 +5,13 @@
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title>Home - Authum</title>
+    <link rel="stylesheet" href="/main.css" />
 </head>
 
 <body>
     <h1>Home</h1>
 
-    <?php if (Checks::isAdmin()) : ?>
-        <ul>
-            <li><a href="/acl">ACL</a></li>
-            <li><a href="/services">Services</a></li>
-            <li><a href="/service-groups">Service Groups</a></li>
-            <li><a href="/users">Users</a></li>
-            <li><a href="/user-groups">User Groups</a></li>
-        </ul>
-    <?php endif ?>
+    <?php view('navigation') ?>
 
     <h2>Services</h2>
 
