@@ -2,10 +2,7 @@
 <html lang="en-CA">
 
 <head>
-    <meta charset="utf-8">
-    <meta name=viewport content="width=device-width,initial-scale=1">
-    <title>Access-Control List - Authum</title>
-    <link rel="stylesheet" href="/main.css" />
+    <?php view('head', ['title' => 'Access-Control List']) ?>
     <style>
         thead th {
             border-left: 1px solid black;

@@ -1,12 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-CA">
 
-<head>
-    <meta charset="utf-8">
-    <meta name=viewport content="width=device-width,initial-scale=1">
-    <title><?= e($serviceGroup['name']) ?> - Service Groups - Authum</title>
-    <link rel="stylesheet" href="/main.css" />
-</head>
+<head><?php view('head', ['title' => $serviceGroup['name'] . ' - Service Groups']) ?></head>
 
 <body>
     <h1><?= e($serviceGroup['name']) ?></h1>

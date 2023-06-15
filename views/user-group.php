@@ -1,12 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-CA">
 
-<head>
-    <meta charset="utf-8">
-    <meta name=viewport content="width=device-width,initial-scale=1">
-    <title><?= e($userGroup['name']) ?> - User Groups - Authum</title>
-    <link rel="stylesheet" href="/main.css" />
-</head>
+<head><?php view('head', ['title' => $userGroup['name'] . ' - User Groups']) ?></head>
 
 <body>
     <h1><?= e($userGroup['name']) ?></h1>

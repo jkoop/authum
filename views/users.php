@@ -1,12 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-CA">
 
-<head>
-    <meta charset="utf-8">
-    <meta name=viewport content="width=device-width,initial-scale=1">
-    <title>Users - Authum</title>
-    <link rel="stylesheet" href="/main.css" />
-</head>
+<head><?php view('head', ['title' => 'Users']) ?></head>
 
 <body>
     <h1>Users</h1>

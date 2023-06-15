@@ -1,12 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-CA">
 
-<head>
-    <meta charset="utf-8">
-    <meta name=viewport content="width=device-width,initial-scale=1">
-    <title><?= e($user['name']) ?> - Users - Authum</title>
-    <link rel="stylesheet" href="/main.css" />
-</head>
+<head><?php view('head', ['title' => $user['name'] . ' - Users']) ?></head>
 
 <body>
     <h1><?= e($user['name']) ?></h1>
