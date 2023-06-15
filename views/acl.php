@@ -8,6 +8,10 @@
             border-left: 1px solid black;
             border-right: 1px solid black;
         }
+
+        tbody td {
+            white-space: nowrap;
+        }
     </style>
     <script>
         function setTheFieldNames() {
