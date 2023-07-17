@@ -134,7 +134,7 @@ function doRouting(array $routes): never {
         }
     } else if (!empty($routesThatMatchPath)) {
         header('Allow: ' . implode(', ', array_column($routesThatMatchPath, '0')));
-        abort(405);
+        abort(405, 'Allowed: ' . implode(', ', array_column($routesThatMatchPath, '0')));
     } else {
         abort(404);
     }
