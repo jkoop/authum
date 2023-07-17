@@ -7,6 +7,13 @@
     <h1><?= e($user['name']) ?></h1>
     <?php view('navigation') ?>
 
+    <form method="post" action="/impersonate?user_id=<?= e($user['id']) ?>">
+        <fieldset>
+            <legend>Administration</legend>
+            <button type="submit">Impersonate</button>
+        </fieldset>
+    </form>
+
     <form method="post">
         <fieldset>
             <legend>General</legend>
