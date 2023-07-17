@@ -48,5 +48,8 @@ doRouting([
     ['POST', 'user', 'User::update', 'admin'],
 
     ['view', 'user-groups', 'user-groups', 'admin'],
+    ['GET', 'user-group/new', 'UserGroup::new', 'admin'],
+    ['POST', 'user-group/new', 'UserGroup::create', 'admin'],
     ['GET', 'user-group', 'UserGroup::view', 'admin'],
+    ['POST', 'user-group', 'UserGroup::update', 'admin'],
 ]);

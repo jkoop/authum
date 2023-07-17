@@ -3,7 +3,7 @@
 include_once __DIR__ . '/../vendor/autoload.php';
 
 const AUTHUM_VERSION = 'dev';
-define('REQUEST_PATH', explode('?', $_SERVER['REQUEST_URI'])[0]);
+define('REQUEST_PATH', ltrim(explode('?', $_SERVER['REQUEST_URI'])[0], '/'));
 
 function config(string $key): string|int|float|null {
     return match ($key) {

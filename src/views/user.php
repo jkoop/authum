@@ -55,9 +55,7 @@
                         </tr>
                     <?php endforeach ?>
                     <tr>
-                        <td>
-                            <input name="add_email_address" type="email" maxlength="255" placeholder="add address" />
-                        </td>
+                        <td><input name="add_email_address" type="email" maxlength="255" placeholder="add address" /></td>
                     </tr>
                 </tbody>
             </table>

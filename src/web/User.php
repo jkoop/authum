@@ -24,10 +24,10 @@ class User {
     }
 
     static function view(): never {
-        $user = DB::queryFirstRow('SELECT * FROM users WHERE id = %s', $_GET['id'] ?? abort(400));
+        $user = DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = %s', $_GET['id'] ?? abort(400));
         if (!$user) abort(404);
 
-        $emailAddresses = DB::query('SELECT * FROM email_addresses WHERE user_id = %s', $_GET['id']);
+        $emailAddresses = DB::query('SELECT * FROM `email_addresses` WHERE `user_id` = %s ORDER BY `email_address`', $_GET['id']);
 
         view('user', compact('user', 'emailAddresses'));
         exit;
@@ -35,7 +35,7 @@ class User {
 
     static function update(bool $createUser = false): never {
         if (!$createUser) {
-            if (!DB::queryFirstRow('SELECT EXISTS(SELECT * FROM users WHERE id = %s)', $_GET['id'] ?? abort(400))) abort(404);
+            if (!DB::queryFirstRow('SELECT EXISTS(SELECT * FROM `users` WHERE `id` = %s)', $_GET['id'] ?? abort(400))) abort(404);
             if (($_POST['action'] ?? null) == 'delete') self::delete($_GET['id']);
         }
 
@@ -49,7 +49,7 @@ class User {
         ]);
 
         if (strlen($_POST['password_new']) > 0) {
-            DB::query('UPDATE users SET password = %s WHERE id = %s', password_hash($_POST['password_new'], null), $userId);
+            DB::query('UPDATE `users` SET `password` = %s WHERE `id` = %s', password_hash($_POST['password_new'], null), $userId);
         }
 
         foreach ($_POST['delete_email_addresses'] ?? [] as $emailAddress) {

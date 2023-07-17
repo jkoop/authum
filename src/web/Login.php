@@ -53,7 +53,7 @@ class Login {
             }
         }
 
-        $location = $_SESSION['intended'] ?? '/';
+        $location = '/' . ($_SESSION['intended'] ?? '');
         unset($_SESSION['intended']);
         redirect($location);
     }
