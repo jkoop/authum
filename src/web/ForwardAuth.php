@@ -53,7 +53,15 @@ class ForwardAuth {
             Login::doLogout();
         }
 
-        $aclResult = DB::queryFirstField(
+        if (self::doesAclAllow($service['id'], loggedInUser()['id'], $method, $path, $queryString)) {
+            exit();
+        } else {
+            abort(403);
+        }
+    }
+
+    public static function doesAclAllow(string $serviceId, string $userId, string $method, string $path, string $queryString): bool {
+        return DB::queryFirstField(
             <<<SQL
                 SELECT if_matches
                 FROM acl
@@ -67,19 +75,13 @@ class ForwardAuth {
                     AND query_string_regex_invert != ((acl.query_string_regex IS NULL OR %s REGEXP acl.query_string_regex))
                 ORDER BY `order` ASC
             SQL,
-            $service['id'],
-            $service['id'],
-            loggedInUser()['id'],
-            loggedInUser()['id'],
-            $method,
+            $serviceId,
+            $serviceId,
+            $userId,
+            $userId,
+            strtoupper($method),
             $path,
             $queryString,
-        );
-
-        if ($aclResult == 'allow') {
-            exit();
-        } else {
-            abort(403);
-        }
+        ) == 'allow';
     }
 }

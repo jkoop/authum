@@ -63,4 +63,15 @@ class Login {
         setcookie("authum_session", '', 0, path: '/', httponly: true);
         redirect(config('app.url') . '/login');
     }
+
+    static function impersonate(): never {
+        try {
+            DB::update('sessions', ['user_id' => $_GET['user_id'] ?? abort(400)], "id=%s", $_COOKIE['authum_session']);
+        } catch (\Exception $e) {
+            abort(404);
+        }
+
+        redirect('/');
+        exit;
+    }
 }

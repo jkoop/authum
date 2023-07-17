@@ -183,7 +183,7 @@ function memo(string $key, callable $callable): mixed {
 
 function view(string $viewPath, array $variables = []): void {
     extract($variables);
-    include __DIR__ . '/../views/' . $viewPath . '.php';
+    include __DIR__ . '/views/' . $viewPath . '.php';
 }
 
 /**

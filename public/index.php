@@ -26,10 +26,11 @@ doDbPruning();
 doRouting([
     // requestMethod, path, responseFunction, ?gateFunction
     ['', '_authum/forward-auth', 'ForwardAuth::handle'],
-    ['view', '/', 'home', 'loggedIn'],
+    ['GET', '/', 'Home::view', 'loggedIn'],
     ['GET', 'login', 'Login::view'], // , 'notLoggedIn'], // We need to use a controller because of forward auth
     ['POST', 'login', 'Login::tryLogin', 'notLoggedIn'],
     ['GET', 'logout', 'Login::doLogout', 'loggedIn'],
+    ['POST', 'impersonate', 'Login::impersonate', 'admin'],
 
     ['view', 'acl', 'acl', 'admin'],
     ['POST', 'acl', 'Acl::update', 'admin'],
