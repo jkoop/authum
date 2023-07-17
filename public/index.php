@@ -42,6 +42,8 @@ doRouting([
     ['GET', 'service-group', 'ServiceGroup::view', 'admin'],
 
     ['view', 'users', 'users', 'admin'],
+    ['GET', 'user/new', 'User::new', 'admin'],
+    ['POST', 'user/new', 'User::create', 'admin'],
     ['GET', 'user', 'User::view', 'admin'],
     ['POST', 'user', 'User::update', 'admin'],
 

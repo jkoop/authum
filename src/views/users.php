@@ -7,6 +7,11 @@
     <h1>Users</h1>
     <?php view('navigation') ?>
 
+    <fieldset>
+        <legend>Actions</legend>
+        <a href="/user/new">Create user</a>
+    </fieldset>
+
     <ul>
         <?php foreach (DB::query('SELECT id, `name` FROM users ORDER BY `name`') as $user) : ?>
             <li>
