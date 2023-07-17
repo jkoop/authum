@@ -249,3 +249,14 @@ function getTypeFromId(string $id): ?string {
     if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM user_groups WHERE id = %s)', $id)) return 'user_group';
     return null;
 }
+
+function scriptTag(string $filename, bool $async = false): string {
+    $result = '<script src="/' . $filename . '.js?v=' . substr(md5(file_get_contents(publicPath($filename . '.js'))), -8) . '"';
+    if ($async) $result .= " async";
+    $result .= '></script>';
+    return $result;
+}
+
+function publicPath(string $filepath): string {
+    return __DIR__ . '/../public/' . $filepath;
+}
