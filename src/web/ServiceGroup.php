@@ -6,7 +6,7 @@ use DB;
 
 class ServiceGroup {
     static function view(): never {
-        $serviceGroup = DB::queryFirstRow('SELECT * FROM service_groups WHERE id = %s', $_GET['id'] ?? abort(400));
+        $serviceGroup = DB::queryFirstRow('SELECT * FROM service_groups WHERE id = %s', $_GET['id'] ?? abort(400, 'The query parameter "id" is required'));
 
         if (!$serviceGroup) abort(404);
 

@@ -10,7 +10,8 @@
     <fieldset>
         <legend>Administration</legend>
         <?php if (isset($user['id'])) : ?>
-            <form method="post" action="/impersonate?user_id=<?= e($user['id']) ?>">
+            <form method="post" action="/impersonate">
+                <input type="hidden" name="user_id" value="<?= e($user['id']) ?>" />
                 <button type="submit">Impersonate</button>
             </form>
         <?php else : ?>

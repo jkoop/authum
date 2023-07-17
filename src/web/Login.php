@@ -66,7 +66,7 @@ class Login {
 
     static function impersonate(): never {
         try {
-            DB::update('sessions', ['user_id' => $_GET['user_id'] ?? abort(400)], "id=%s", $_COOKIE['authum_session']);
+            DB::update('sessions', ['user_id' => $_POST['user_id'] ?? abort(400, 'The post parameter "user_id" is required')], "id=%s", $_COOKIE['authum_session']);
         } catch (\Exception $e) {
             abort(404);
         }

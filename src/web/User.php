@@ -24,7 +24,7 @@ class User {
     }
 
     static function view(): never {
-        $user = DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = %s', $_GET['id'] ?? abort(400));
+        $user = DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = %s', $_GET['id'] ?? abort(400, 'The query parameter "id" is required'));
         if (!$user) abort(404);
 
         $emailAddresses = DB::query('SELECT * FROM `email_addresses` WHERE `user_id` = %s ORDER BY `email_address`', $_GET['id']);
@@ -35,7 +35,7 @@ class User {
 
     static function update(bool $createUser = false): never {
         if (!$createUser) {
-            if (!DB::queryFirstRow('SELECT EXISTS(SELECT * FROM `users` WHERE `id` = %s)', $_GET['id'] ?? abort(400))) abort(404);
+            if (!DB::queryFirstRow('SELECT EXISTS(SELECT * FROM `users` WHERE `id` = %s)', $_GET['id'] ?? abort(400, 'The query parameter "id" is required'))) abort(404);
             if (($_POST['action'] ?? null) == 'delete') self::delete($_GET['id']);
         }
 
