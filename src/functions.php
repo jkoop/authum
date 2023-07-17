@@ -250,10 +250,19 @@ function getTypeFromId(string $id): ?string {
     return null;
 }
 
-function scriptTag(string $filename, bool $async = false): string {
-    $result = '<script src="/' . $filename . '.js?v=' . substr(md5(file_get_contents(publicPath($filename . '.js'))), -8) . '"';
+function scriptTag(string $filename, bool $fullUrl = false, bool $async = false): string {
+    $result = '<script src="';
+    if ($fullUrl) $result .= config('app.url');
+    $result .= '/' . $filename . '.js?v=' . substr(md5(file_get_contents(publicPath($filename . '.js'))), -8) . '"';
     if ($async) $result .= " async";
     $result .= '></script>';
+    return $result;
+}
+
+function styleTag(string $filename, bool $fullUrl = false): string {
+    $result = '<link rel="stylesheet" href="';
+    if ($fullUrl) $result .= config('app.url');
+    $result .= '/' . $filename . '.css?v=' . substr(md5(file_get_contents(publicPath($filename . '.css'))), -8) . '" />';
     return $result;
 }
 
