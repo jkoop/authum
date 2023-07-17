@@ -20,7 +20,7 @@
         </ul>
     <?php endif ?>
 
-    <p>There may be more services than those listed above of which you only access a subset.</p>
+    <p>There may be more services than those listed above of which you are only permitted to access a subset.</p>
 
     <?php view('logged-in-footer') ?>
 </body>
