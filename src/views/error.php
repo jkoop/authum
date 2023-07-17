@@ -7,6 +7,7 @@
     <title><?= $status ?> <?= e($defaultMessages[$status] ?? '') ?> - Authum</title>
     <link rel="icon" href="<?= config('app.url') ?>/favicon.ico" />
     <?= styleTag('error', fullUrl: true) ?>
+    <?= styleTag('main', fullUrl: true) ?>
 </head>
 
 <body>
