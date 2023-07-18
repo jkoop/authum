@@ -53,7 +53,7 @@
                         <tr>
                             <td>
                                 <?php if ($emailAddress['discord_user_id']) : ?>
-                                    <a href="https://discordapp.com/users/<?= $emailAddress['discord_user_id'] ?>" target="_blank"><img width="16" height="16" src="/discord_icon_tiny.png" /></a>
+                                    <a href="https://discordapp.com/users/<?= $emailAddress['discord_user_id'] ?>" target="_blank"><img width="16" height="16" src="/discord_icon.png" /></a>
                                 <?php endif ?>
                                 <a href="mailto:<?= e($emailAddress['email_address']) ?>"><?= e($emailAddress['email_address']) ?></a>
                             </td>
