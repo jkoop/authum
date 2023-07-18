@@ -15,3 +15,20 @@ fieldset {
     width: fit-content;
     margin-block: 1rem;
 }
+
+button {
+    cursor: pointer;
+}
+
+div.error {
+    background-color: red;
+    color: white;
+    padding: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    div.error {
+        background-color: #f00a;
+        color: white;
+    }
+}

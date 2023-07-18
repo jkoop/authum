@@ -1,5 +1,5 @@
 <?php foreach ($_SESSION['errors'] ?? [] as $error) : ?>
-    <div style="background-color:red;color:white;padding:1rem">
+    <div class="error">
         <?= e($error) ?>
     </div>
 <?php endforeach; ?>

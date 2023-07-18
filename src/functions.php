@@ -15,6 +15,9 @@ function config(string $key): string|int|float|null {
         'db.username' => trim($_ENV['DB_USERNAME']),
         'db.password' => trim($_ENV['DB_PASSWORD']),
         'db.pruning-lottery' => (int) $_ENV['DB_PRUNING_LOTTERY'],
+        'discord.enabled' => (bool) config('discord.client_id') && config('discord.client_secret'),
+        'discord.client_id' => $_ENV['DISCORD_CLIENT_ID'] ?? null,
+        'discord.client_secret' => $_ENV['DISCORD_CLIENT_SECRET'] ?? null,
         'session.timeout' => $_ENV['SESSION_TIMEOUT'] * 60,
         default => null,
     };
