@@ -51,7 +51,12 @@
                 <tbody>
                     <?php foreach ($emailAddresses as $emailAddress) : ?>
                         <tr>
-                            <td><a href="mailto:<?= e($emailAddress['email_address']) ?>"><?= e($emailAddress['email_address']) ?></a></td>
+                            <td>
+                                <?php if ($emailAddress['discord_user_id']) : ?>
+                                    <a href="https://discordapp.com/users/<?= $emailAddress['discord_user_id'] ?>" target="_blank"><img width="16" height="16" src="/discord_icon_tiny.png" /></a>
+                                <?php endif ?>
+                                <a href="mailto:<?= e($emailAddress['email_address']) ?>"><?= e($emailAddress['email_address']) ?></a>
+                            </td>
                             <td><input name="delete_email_addresses[]" value="<?= e($emailAddress['email_address']) ?>" type="checkbox" /></td>
                         </tr>
                     <?php endforeach ?>

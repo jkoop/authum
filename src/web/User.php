@@ -35,7 +35,7 @@ class User {
 
     static function update(bool $createUser = false): never {
         if (!$createUser) {
-            if (!DB::queryFirstRow('SELECT EXISTS(SELECT * FROM `users` WHERE `id` = %s)', $_GET['id'] ?? abort(400, 'The query parameter "id" is required'))) abort(404);
+            if (!DB::queryFirstField('SELECT EXISTS(SELECT * FROM `users` WHERE `id` = %s)', $_GET['id'] ?? abort(400, 'The query parameter "id" is required'))) abort(404);
             if (($_POST['action'] ?? null) == 'delete') self::delete($_GET['id']);
         }
 

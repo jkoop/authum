@@ -40,7 +40,7 @@ class UserGroup {
 
     static function update(bool $createUserGroup = false): never {
         if (!$createUserGroup) {
-            if (!DB::queryFirstRow('SELECT EXISTS(SELECT * FROM `user_groups` WHERE `id` = %s)', $_GET['id'] ?? abort(400, 'The query parameter "id" is required'))) abort(404);
+            if (!DB::queryFirstField('SELECT EXISTS(SELECT * FROM `user_groups` WHERE `id` = %s)', $_GET['id'] ?? abort(400, 'The query parameter "id" is required'))) abort(404);
             if (($_POST['action'] ?? null) == 'delete') self::delete($_GET['id']);
         }
 

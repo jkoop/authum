@@ -56,7 +56,7 @@ function abort(int $status, string $message = null): never {
         '429' => 'Too Many Requests',
         '431' => 'Request Header Fields Too Large',
         '451' => 'Unavailable For Legal Reasons',
-        '500' => 'Internal Server Error',
+        '500' => 'Server Error',
         '501' => 'Not Implemented',
         '502' => 'Bad Gateway',
         '503' => 'Service Unavailable',
@@ -87,8 +87,14 @@ function addError(string $message): void {
 /**
  * @return void|never
  */
-function responseFormValidationFailMaybe() {
-    if (count($_SESSION['errors'] ?? []) > 0) redirectBack();
+function responseFormValidationFailMaybe(string $forceUrl = null) {
+    if (count($_SESSION['errors'] ?? []) > 0) {
+        if (is_null($forceUrl)) {
+            redirectBack();
+        } else {
+            redirect($forceUrl);
+        }
+    }
 }
 
 function redirectBack(): never {

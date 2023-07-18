@@ -6,13 +6,14 @@
     <meta name=viewport content="width=device-width,initial-scale=1">
     <title><?= $status ?> <?= e($defaultMessages[$status] ?? '') ?> - Authum</title>
     <link rel="icon" href="<?= config('app.url') ?>/favicon.ico" />
+    <link rel="icon" href="<?= config('app.url') ?>/favicon.png" />
     <?= styleTag('error', fullUrl: true) ?>
     <?= styleTag('main', fullUrl: true) ?>
 </head>
 
 <body>
     <h1><?= e($defaultMessages[$status] ?? '') ?></h1>
-    <?php if (strlen($message ?? '')): ?>
+    <?php if (strlen($message ?? '')) : ?>
         <p><?= e($message) ?></p>
     <?php endif ?>
     <?php if (Checks::isLoggedIn()) : ?>

@@ -16,7 +16,12 @@
     </form>
     <?php if (config('discord.enabled')) : ?>
         <span> &mdash; or &mdash; </span>
-        <a href="https://joekoop.com"><img src="/discord_full_logo_white_RGB.svg" /></a>
+        <a href="<?= e('https://discord.com/api/oauth2/authorize?' . http_build_query([
+                        'client_id' => config('discord.client_id'),
+                        'redirect_uri' => config('app.url') . '/callback/discord',
+                        'response_type' => 'code',
+                        'scope' => 'email identify',
+                    ])) ?>"><img src="/discord_full_logo_white_RGB.svg" /></a>
     <?php endif ?>
 </body>
 

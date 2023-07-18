@@ -31,6 +31,7 @@ doRouting([
     ['POST', 'login', 'Login::tryLogin', 'notLoggedIn'],
     ['GET', 'logout', 'Login::doLogout', 'loggedIn'],
     ['POST', 'impersonate', 'Login::impersonate', 'admin'],
+    ['GET', 'callback/discord', 'Login::loginWithDiscord', 'notLoggedIn'],
 
     ['view', 'acl', 'acl', 'admin'],
     ['POST', 'acl', 'Acl::update', 'admin'],
