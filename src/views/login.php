@@ -10,7 +10,7 @@
     <h1>Login</h1>
     <?php include __DIR__ . '/messages.php'; ?>
     <form method="post">
-        <input type="email" name="email" placeholder="email" autofocus /><br>
+        <input type="text" name="username" placeholder="id" autofocus /><br>
         <input type="password" name="password" placeholder="password" /><br>
         <button type="submit">Login</button>
     </form>
@@ -20,7 +20,7 @@
                         'client_id' => config('discord.client_id'),
                         'redirect_uri' => config('app.url') . '/callback/discord',
                         'response_type' => 'code',
-                        'scope' => 'email identify',
+                        'scope' => 'identify',
                     ])) ?>"><img src="/discord_full_logo_white_RGB.svg" /></a>
     <?php endif ?>
 </body>
