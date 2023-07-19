@@ -159,7 +159,7 @@ function loggedInUser(): array {
         $user = [];
 
         $sessionId = $_COOKIE['authum_session'] ?? null;
-        $email = $_SERVER["PHP_AUTH_USER"] ?? null;
+        $id = $_SERVER["PHP_AUTH_USER"] ?? null;
         $password = $_SERVER["PHP_AUTH_PW"] ?? null;
 
         if (strlen($sessionId ?? '') != 42) $sessionId = null;
@@ -170,8 +170,8 @@ function loggedInUser(): array {
             $user = DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) AND `is_enabled` = 1 LIMIT 1', $_COOKIE['authum_session']) ?? [];
         }
 
-        if (empty($user) && !empty($email) && !empty($password)) {
-            $user = DB::queryFirstRow('SELECT users.* FROM users INNER JOIN email_addresses ON email_addresses.user_id = users.id WHERE email_address = %s', $email) ?? [];
+        if (empty($user) && !empty($id) && !empty($password)) {
+            $user = DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = %s', $id) ?? [];
             if (isset($user['password']) && !password_verify($password, $user['password'])) $user = [];
         }
 
@@ -193,6 +193,12 @@ function memo(string $key, callable $callable): mixed {
 function view(string $viewPath, array $variables = []): void {
     extract($variables);
     include __DIR__ . '/views/' . $viewPath . '.php';
+}
+
+function viewAsString(string $viewPath, array $variables = []): string {
+    ob_start();
+    view($viewPath, $variables);
+    return ob_get_clean();
 }
 
 /**
@@ -253,9 +259,8 @@ function doDbPruning(): void {
 
 function getTypeFromId(string $id): ?string {
     if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM services WHERE id = %s)', $id)) return 'service';
-    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM service_groups WHERE id = %s)', $id)) return 'service_group';
     if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM users WHERE id = %s)', $id)) return 'user';
-    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM user_groups WHERE id = %s)', $id)) return 'user_group';
+    if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM groups WHERE id = %s)', $id)) return 'group';
     return null;
 }
 

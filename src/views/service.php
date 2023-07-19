@@ -4,18 +4,14 @@
 <head><?php view('head', ['title' => $service['name'] . ' - Services']) ?></head>
 
 <body>
-    <h1><?= e($service['name']) ?></h1>
+    <h1>Service: <?= e($service['name']) ?></h1>
     <?php view('navigation') ?>
 
-    <h2>Domain Names</h2>
-
-    <ul>
-        <?php foreach ($domainNames as $domainName) : ?>
-            <li>
-                <a href="//<?= e($domainName['domain_name']) ?>"><?= e($domainName['domain_name']) ?></a>
-            </li>
-        <?php endforeach ?>
-    </ul>
+    <p>
+        Name: <?= e($service['name']) ?><br>
+        Domain Name: <?= e($service['domain_name']) ?><br>
+        Logout Path: <?= e($service['logout_path']) ?><br>
+    </p>
 
     <?php view('logged-in-footer') ?>
 </body>

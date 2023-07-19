@@ -26,6 +26,16 @@ div.error {
     padding: 0.5rem;
 }
 
+a.discord-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    background-image: url("/discord_icon.png");
+    background-position: center center;
+    background-size: contain;
+}
+
 @media (prefers-color-scheme: dark) {
     div.error {
         background-color: #f00a;

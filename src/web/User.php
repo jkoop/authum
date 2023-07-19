@@ -3,6 +3,7 @@
 namespace Web;
 
 use DB;
+use mysqli_sql_exception;
 use Ulid\Ulid;
 
 class User {
@@ -13,9 +14,7 @@ class User {
             'is_enabled' => 1,
         ];
 
-        $emailAddresses = [];
-
-        view('user', compact('user', 'emailAddresses'));
+        view('user', compact('user'));
         exit;
     }
 
@@ -27,9 +26,7 @@ class User {
         $user = DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = %s', $_GET['id'] ?? abort(400, 'The query parameter "id" is required'));
         if (!$user) abort(404);
 
-        $emailAddresses = DB::query('SELECT * FROM `email_addresses` WHERE `user_id` = %s ORDER BY `email_address`', $_GET['id']);
-
-        view('user', compact('user', 'emailAddresses'));
+        view('user', compact('user'));
         exit;
     }
 
@@ -39,28 +36,41 @@ class User {
             if (($_POST['action'] ?? null) == 'delete') self::delete($_GET['id']);
         }
 
-        $userId = $createUser ? Ulid::generate() : $_GET['id'];
+        if ($createUser) {
+            if (strlen($_POST['id'] ?? '') > 0) {
+                $userId = substr($_POST['id'], 0, 20);
+            } else {
+                $userId = Ulid::generate();
+            }
+        } else {
+            $userId = $_GET['id'];
+        }
 
-        DB::insertUpdate('users', [
-            'id' => $userId,
-            'name' => substr($_POST['name'], 0, 255),
-            'is_admin' => isset($_POST['is_admin']),
-            'is_enabled' => isset($_POST['is_enabled']),
-        ]);
+        if ($createUser) {
+            try {
+                DB::insert('users', [
+                    'id' => $userId,
+                    'name' => substr($_POST['name'], 0, 255),
+                    'is_admin' => isset($_POST['is_admin']),
+                    'is_enabled' => isset($_POST['is_enabled']),
+                ]);
+            } catch (mysqli_sql_exception $e) {
+                if (str_starts_with($e->getMessage(), 'Duplicate entry ')) {
+                    abort(400, "The ID is already taken");
+                }
+                throw $e;
+            }
+        } else {
+            DB::insertUpdate('users', [
+                'id' => $userId,
+                'name' => substr($_POST['name'], 0, 255),
+                'is_admin' => isset($_POST['is_admin']),
+                'is_enabled' => isset($_POST['is_enabled']),
+            ]);
+        }
 
         if (strlen($_POST['password_new']) > 0) {
             DB::query('UPDATE `users` SET `password` = %s WHERE `id` = %s', password_hash($_POST['password_new'], null), $userId);
-        }
-
-        foreach ($_POST['delete_email_addresses'] ?? [] as $emailAddress) {
-            DB::query('DELETE FROM `email_addresses` WHERE `email_address` = %s AND `user_id` = %s', $emailAddress, $userId);
-        }
-
-        if (strlen($_POST['add_email_address']) > 0 && strlen($_POST['add_email_address']) < 256) {
-            DB::insertIgnore('email_addresses', [
-                'email_address' => $_POST['add_email_address'],
-                'user_id' => $userId,
-            ]);
         }
 
         if ($createUser) redirect("/user?id=$userId");

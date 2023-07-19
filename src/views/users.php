@@ -16,7 +16,7 @@
         <?php foreach (DB::query('SELECT id, `name` FROM users ORDER BY `name`') as $user) : ?>
             <li>
                 <a href="/user?id=<?= $user['id'] ?>"><?= e($user['name']) ?></a>
-                &lt;<?= e(implode(', ', DB::queryFirstColumn('SELECT email_address FROM email_addresses WHERE user_id = %s', $user['id']))) ?>&gt;
+                <?php view('discord-icon-link', ['id' => $user['id']]) ?>
             </li>
         <?php endforeach ?>
     </ul>

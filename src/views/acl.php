@@ -76,7 +76,7 @@
     <h1>Access-Control List</h1>
     <?php view('navigation') ?>
 
-    <p>When a forward auth request is made, the rules in this ACL are compared one-by-one in order from top to bottom. The first rule to match determines the allowed-ness (allow/deny). The method "HEAD" will be processed as if it is "GET". Paths never begin with a slash.</p>
+    <p>When a forward auth request is received, the rules in this ACL are compared one-by-one in order from top to bottom. The first rule to match determines the allowed-ness (allow/deny). The method "HEAD" will be processed as if it is "GET". Paths never begin with a slash.</p>
 
     <form method="post" onSubmit="setTheFieldNames()">
         <table>
@@ -101,12 +101,7 @@
                             </select></td>
                         <td><select name="service">
                                 <option value=""><i>-- any --</i></option>
-                                <optgroup label="groups">
-                                    <?php view('options-service-group', ['selected' => $rule['service_group_id']]) ?>
-                                </optgroup>
-                                <optgroup label="services">
-                                    <?php view('options-service', ['selected' => $rule['service_id']]) ?>
-                                </optgroup>
+                                <?php view('options-service', ['selected' => $rule['service_id']]) ?>
                             </select></td>
                         <td><select name="user_invert">
                                 <option value="0" <?= $rule['user_invert'] ? '' : 'selected' ?>>Is</option>
@@ -115,7 +110,7 @@
                         <td><select name="user">
                                 <option value=""><i>-- any --</i></option>
                                 <optgroup label="groups">
-                                    <?php view('options-user-group', ['selected' => $rule['user_group_id']]) ?>
+                                    <?php view('options-group', ['selected' => $rule['group_id']]) ?>
                                 </optgroup>
                                 <optgroup label="users">
                                     <?php view('options-user', ['selected' => $rule['user_id']]) ?>
@@ -158,12 +153,7 @@
                         </select></td>
                     <td><select name="service" disabled>
                             <option value=""><i>-- any --</i></option>
-                            <optgroup label="groups">
-                                <?php view('options-service-group') ?>
-                            </optgroup>
-                            <optgroup label="services">
-                                <?php view('options-service') ?>
-                            </optgroup>
+                            <?php view('options-service') ?>
                         </select></td>
                     <td><select name="user_invert" disabled>
                             <option value="0">Is</option>
@@ -172,7 +162,7 @@
                     <td><select name="user" disabled>
                             <option value=""><i>-- any --</i></option>
                             <optgroup label="groups">
-                                <?php view('options-user-group') ?>
+                                <?php view('options-group') ?>
                             </optgroup>
                             <optgroup label="users">
                                 <?php view('options-user') ?>

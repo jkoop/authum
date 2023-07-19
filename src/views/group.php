@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en-CA">
 
-<head><?php view('head', ['title' => $userGroup['name'] . ' - User Groups']) ?></head>
+<head><?php view('head', ['title' => $group['name'] . ' - Groups']) ?></head>
 
 <body>
-    <h1><?= e($userGroup['name']) ?></h1>
+    <h1>Group: <?= e($group['name']) ?></h1>
     <?php view('navigation') ?>
 
     <form method="post">
         <fieldset>
             <legend>General</legend>
-            <?php if (isset($userGroup['id'])) : ?>
-                <label>Name <input name="name" maxlength="255" value="<?= e($userGroup['name']) ?>" required /></label><br>
+            <?php if (isset($group['id'])) : ?>
+                <label>Name <input name="name" maxlength="255" value="<?= e($group['name']) ?>" required /></label><br>
             <?php else : ?>
                 <label>Name <input name="name" maxlength="255" autofocus required /></label><br>
             <?php endif ?>
@@ -47,7 +47,7 @@
         <button type="submit" form="delete">Delete</button>
     </form>
 
-    <form method="post" id="delete" style="display:none" onsubmit="return confirm(<?= e(json_encode('Really delete "' . $userGroup['name'] . '" forever?')) ?>)">
+    <form method="post" id="delete" style="display:none" onsubmit="return confirm(<?= e(json_encode('Really delete "' . $group['name'] . '" forever?')) ?>)">
         <input name="action" value="delete" />
     </form>
 

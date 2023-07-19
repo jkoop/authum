@@ -8,10 +8,10 @@
     <?php view('navigation') ?>
 
     <ul>
-        <?php foreach (DB::query('SELECT id, `name` FROM services ORDER BY `name`') as $service) : ?>
+        <?php foreach (DB::query('SELECT `id`, `name`, `domain_name` FROM `services` ORDER BY `name`') as $service) : ?>
             <li>
                 <a href="/service?id=<?= $service['id'] ?>"><?= e($service['name']) ?></a>
-                &lt;<?= e(implode(', ', DB::queryFirstColumn('SELECT domain_name FROM domain_names WHERE service_id = %s', $service['id']))) ?>&gt;
+                &lt;<?= e($service['domain_name']) ?>&gt;
             </li>
         <?php endforeach ?>
     </ul>

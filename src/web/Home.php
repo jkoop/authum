@@ -9,7 +9,6 @@ class Home {
         $services = DB::query(<<<SQL
             SELECT DISTINCT `id`, `name`, `domain_name`
             FROM `services`
-            INNER JOIN `domain_names` ON `services`.`id` = `domain_names`.`service_id`
             ORDER BY `name`
         SQL);
 

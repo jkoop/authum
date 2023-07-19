@@ -4,7 +4,7 @@
 <head><?php view('head', ['title' => $user['name'] . ' - Users']) ?></head>
 
 <body>
-    <h1><?= e($user['name']) ?></h1>
+    <h1>User: <?= e($user['name']) ?></h1>
     <?php view('navigation') ?>
 
     <fieldset>
@@ -23,8 +23,10 @@
         <fieldset>
             <legend>General</legend>
             <?php if (isset($user['id'])) : ?>
+                <label>ID <?php view('discord-icon-link', ['id' => $user['id']]) ?> <input value="<?= e($user['id']) ?>" readonly /></label><br>
                 <label>Name <input name="name" maxlength="255" value="<?= e($user['name']) ?>" required /></label><br>
             <?php else : ?>
+                <label>ID <input name="id" minlength="1" maxlength="20" placeholder="leave blank for random" /></label><br>
                 <label>Name <input name="name" maxlength="255" autofocus required /></label><br>
             <?php endif ?>
             <label><input name="is_admin" type="checkbox" <?= $user['is_admin'] ? 'checked' : '' ?> /> Is admin?</label><br>
@@ -38,32 +40,6 @@
                     <th>New</th>
                     <td><input name="password_new" type="password" /></td>
                 </tr>
-            </table>
-        </fieldset>
-
-        <fieldset>
-            <legend>Email Addresses</legend>
-            <table>
-                <thead>
-                    <th>Email Address</th>
-                    <th>Delete?</th>
-                </thead>
-                <tbody>
-                    <?php foreach ($emailAddresses as $emailAddress) : ?>
-                        <tr>
-                            <td>
-                                <?php if ($emailAddress['discord_user_id']) : ?>
-                                    <a href="https://discordapp.com/users/<?= $emailAddress['discord_user_id'] ?>" target="_blank"><img width="16" height="16" src="/discord_icon.png" /></a>
-                                <?php endif ?>
-                                <a href="mailto:<?= e($emailAddress['email_address']) ?>"><?= e($emailAddress['email_address']) ?></a>
-                            </td>
-                            <td><input name="delete_email_addresses[]" value="<?= e($emailAddress['email_address']) ?>" type="checkbox" /></td>
-                        </tr>
-                    <?php endforeach ?>
-                    <tr>
-                        <td><input name="add_email_address" type="email" maxlength="255" placeholder="add address" /></td>
-                    </tr>
-                </tbody>
             </table>
         </fieldset>
 

@@ -46,7 +46,7 @@ class ForwardAuth {
             }
         }
 
-        $service = DB::queryFirstRow('SELECT `id`, `logout_path` FROM `services` INNER JOIN `domain_names` ON `domain_names`.`service_id` = `services`.`id` WHERE `domain_name` = %s', $domainName);
+        $service = DB::queryFirstRow('SELECT `id`, `logout_path` FROM `services` WHERE `domain_name` = %s', $domainName);
 
         // logout
         if ($path == $service['logout_path']) {
@@ -65,17 +65,15 @@ class ForwardAuth {
             <<<SQL
                 SELECT if_matches
                 FROM acl
-                    LEFT OUTER JOIN service_service_group ON service_service_group.service_group_id = acl.service_group_id
-                    LEFT OUTER JOIN user_user_group ON user_user_group.user_group_id = acl.user_group_id
+                    LEFT OUTER JOIN group_user ON group_user.group_id = acl.group_id
                 WHERE
-                    service_invert != ((acl.service_id IS NULL OR acl.service_id = %s) AND (acl.service_group_id IS NULL OR service_service_group.service_id = %s))
-                    AND user_invert != ((acl.user_id IS NULL OR acl.user_id = %s) AND (acl.user_group_id IS NULL OR user_user_group.user_id = %s))
+                    service_invert != (acl.service_id IS NULL OR acl.service_id = %s)
+                    AND user_invert != ((acl.user_id IS NULL OR acl.user_id = %s) AND (acl.group_id IS NULL OR group_user.user_id = %s))
                     AND method_regex_invert != ((acl.method_regex IS NULL OR %s REGEXP acl.method_regex))
                     AND path_regex_invert != ((acl.path_regex IS NULL OR %s REGEXP acl.path_regex))
                     AND query_string_regex_invert != ((acl.query_string_regex IS NULL OR %s REGEXP acl.query_string_regex))
                 ORDER BY `order` ASC
             SQL,
-            $serviceId,
             $serviceId,
             $userId,
             $userId,

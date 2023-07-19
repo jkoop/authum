@@ -39,18 +39,15 @@ doRouting([
     ['view', 'services', 'services', 'admin'],
     ['GET', 'service', 'Service::view', 'admin'],
 
-    ['view', 'service-groups', 'service-groups', 'admin'],
-    ['GET', 'service-group', 'ServiceGroup::view', 'admin'],
-
     ['view', 'users', 'users', 'admin'],
     ['GET', 'user/new', 'User::new', 'admin'],
     ['POST', 'user/new', 'User::create', 'admin'],
     ['GET', 'user', 'User::view', 'admin'],
     ['POST', 'user', 'User::update', 'admin'],
 
-    ['view', 'user-groups', 'user-groups', 'admin'],
-    ['GET', 'user-group/new', 'UserGroup::new', 'admin'],
-    ['POST', 'user-group/new', 'UserGroup::create', 'admin'],
-    ['GET', 'user-group', 'UserGroup::view', 'admin'],
-    ['POST', 'user-group', 'UserGroup::update', 'admin'],
+    ['view', 'groups', 'groups', 'admin'],
+    ['GET', 'group/new', 'Group::new', 'admin'],
+    ['POST', 'group/new', 'Group::create', 'admin'],
+    ['GET', 'group', 'Group::view', 'admin'],
+    ['POST', 'group', 'Group::update', 'admin'],
 ]);

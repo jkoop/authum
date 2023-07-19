@@ -13,17 +13,13 @@ class Acl {
 
         foreach ($_POST as $order => $rule) {
             if ($rule['service'] != '') {
-                if (getTypeFromId($rule['service']) == 'service') {
-                    $rule['service_id'] = $rule['service'];
-                } else if (getTypeFromId($rule['service']) == 'service_group') {
-                    $rule['service_group_id'] = $rule['service'];
-                }
+                $rule['service_id'] = $rule['service'];
             }
             if ($rule['user'] != '') {
                 if (getTypeFromId($rule['user']) == 'user') {
                     $rule['user_id'] = $rule['user'];
-                } else if (getTypeFromId($rule['user']) == 'user_group') {
-                    $rule['user_group_id'] = $rule['user'];
+                } else if (getTypeFromId($rule['user']) == 'group') {
+                    $rule['group_id'] = $rule['user'];
                 }
             }
 
@@ -37,10 +33,9 @@ class Acl {
                 'order' => $order,
                 'service_invert' => $rule['service_invert'],
                 'service_id' => $rule['service_id'] ?? null,
-                'service_group_id' => $rule['service_group_id'] ?? null,
                 'user_invert' => $rule['user_invert'],
                 'user_id' => $rule['user_id'] ?? null,
-                'user_group_id' => $rule['user_group_id'] ?? null,
+                'group_id' => $rule['group_id'] ?? null,
                 'method_regex_invert' => $rule['method_regex_invert'],
                 'method_regex' => $rule['method_regex'] != '' ? $rule['method_regex'] : null,
                 'path_regex_invert' => $rule['path_regex_invert'],
