@@ -27,6 +27,17 @@ form {
     text-align: right;
 }
 
+fieldset {
+    padding: 1rem;
+    border: 1px solid black;
+    margin: 0;
+}
+
+fieldset legend {
+    text-align: left;
+    padding-inline: 0.25rem;
+}
+
 hr {
     width: calc(100% - 2rem);
 }
@@ -42,6 +53,10 @@ img:hover {
     background-color: #5865f2;
 }
 
+input {
+    max-width: calc(200px - 2rem - 2px);
+}
+
 @media screen and (min-width: 500px) {
     body {
         padding-top: 0;
@@ -53,5 +68,9 @@ img:hover {
     body {
         background-color: #111;
         color: white;
+    }
+
+    fieldset {
+        border-color: white;
     }
 }

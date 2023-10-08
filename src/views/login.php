@@ -10,9 +10,12 @@
     <h1>Login</h1>
     <?php include __DIR__ . '/messages.php'; ?>
     <form method="post">
-        <input type="text" name="username" placeholder="id" autofocus /><br>
-        <input type="password" name="password" placeholder="password" /><br>
-        <button type="submit">Login</button>
+        <fieldset>
+            <legend>Internal ID</legend>
+            <input type="text" name="username" placeholder="id" autofocus /><br>
+            <input type="password" name="password" placeholder="password" /><br>
+            <button type="submit">Login</button>
+        </fieldset>
     </form>
     <?php if (config('discord.enabled')) : ?>
         <span> &mdash; or &mdash; </span>
