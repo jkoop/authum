@@ -39,13 +39,15 @@ class User {
 
         if ($createUser) {
             if (strlen($_POST['id'] ?? '') > 0) {
-                $userId = substr($_POST['id'], 0, 20);
+                $userId = $_POST['id'];
             } else {
-                $userId = Ulid::generate();
+                $userId = Ulid::generate(lowercase: true);
             }
         } else {
             $userId = $_GET['id'];
         }
+
+        $userId = substr($userId, 0, 20);
 
         if ($createUser) {
             try {

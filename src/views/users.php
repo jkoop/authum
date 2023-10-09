@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="en-CA">
 
-<head><?php view('head', ['title' => 'Users']) ?></head>
+<head>
+    <?php view('head', ['title' => 'Users']) ?>
+    <?= styleTag('users') ?>
+</head>
 
 <body>
     <h1>Users</h1>
