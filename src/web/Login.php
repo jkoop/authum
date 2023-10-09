@@ -11,13 +11,13 @@ use Ulid\Ulid;
 class Login {
     static function view(): never {
         if (isset($_GET['from'])) {
-            setcookie("authum_from", $_GET['from'], time() + config('session.timeout'), path: '/', httponly: true);
-        }
-
-        if (isset($_COOKIE['authum_from']) && Checks::isLoggedIn()) {
-            $url = parse_url($_COOKIE['authum_from']);
-            if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `services` WHERE `domain_name` = %s)', $url['host']) == 0) redirect('/login');
-            redirect('//' . $url['host'] . '/_authum_login?' . http_build_query(['token' => $_COOKIE['authum_session']]));
+            if (Checks::isLoggedIn()) {
+                $url = parse_url($_GET['from']);
+                if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `services` WHERE `domain_name` = %s)', $url['host']) == 0) redirect('/login');
+                redirect('//' . $url['host'] . '/_authum_login?' . http_build_query(['token' => $_COOKIE['authum_session']]));
+            } else {
+                setcookie("authum_from", $_GET['from'], time() + config('session.timeout'), path: '/', httponly: true);
+            }
         }
 
         Gates::notLoggedIn();
