@@ -4,17 +4,23 @@ namespace Web;
 
 use Checks;
 use DB;
+use Gates;
 use SKleeschulte\Base32;
 use Ulid\Ulid;
 
 class Login {
     static function view(): never {
-        if (($_GET['from'] ?? '') != '' && Checks::isLoggedIn()) {
-            $domainName = explode('/', str_replace(':', '/', $_GET['from']))[0];
-            if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `services` WHERE `domain_name` = %s)', $domainName) == 0) redirect('/login');
-            redirect('//' . $domainName . '/_authum_login?' . http_build_query(['token' => $_COOKIE['authum_session']]));
+        if (isset($_GET['from'])) {
+            setcookie("authum_from", $_GET['from'], time() + config('session.timeout'), path: '/', httponly: true);
         }
 
+        if (isset($_COOKIE['authum_from']) && Checks::isLoggedIn()) {
+            $url = parse_url($_COOKIE['authum_from']);
+            if (DB::queryFirstField('SELECT EXISTS(SELECT * FROM `services` WHERE `domain_name` = %s)', $url['host']) == 0) redirect('/login');
+            redirect('//' . $url['host'] . '/_authum_login?' . http_build_query(['token' => $_COOKIE['authum_session']]));
+        }
+
+        Gates::notLoggedIn();
         view('login');
         exit;
     }
@@ -36,10 +42,10 @@ class Login {
         if (!password_verify($password, $user['password'])) addError('no such user or bad password');
         responseFormValidationFailMaybe();
 
-        self::doLogin($user);
+        self::doLogin($user, $_GET['from'] ?? null);
     }
 
-    private static function doLogin(array $user): never {
+    private static function doLogin(array $user, string $redirection = null): never {
         if (!$user['is_enabled']) addError('the account is disabled');
         responseFormValidationFailMaybe('/login');
 
@@ -47,6 +53,7 @@ class Login {
         DB::query('INSERT INTO `sessions` (`id`, `user_id`, `created_at`, `last_used_at`) VALUES (%s, %s, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())', $sessionId, $user['id']);
 
         setcookie("authum_session", $sessionId, time() + config('session.timeout'), path: '/', httponly: true);
+        setcookie("authum_from", '', 1, path: '/', httponly: true);
 
         if ($_GET['from'] ?? '' != '') {
             $domainName = explode('/', str_replace(':', '/', $_GET['from']))[0];
@@ -58,14 +65,14 @@ class Login {
             }
         }
 
-        $location = '/' . ($_SESSION['intended'] ?? '');
-        unset($_SESSION['intended']);
-        redirect($location);
+        if ($redirection == '') $redirection = null;
+        redirect($redirection ?? '/');
     }
 
     static function doLogout(): never {
         DB::query('DELETE FROM `sessions` WHERE `id` = %s', $_COOKIE['authum_session']);
-        setcookie("authum_session", '', 0, path: '/', httponly: true);
+        setcookie("authum_session", '', 1, path: '/', httponly: true);
+        setcookie("authum_from", '', 1, path: '/', httponly: true);
         redirect(config('app.url') . '/login');
     }
 
@@ -124,10 +131,12 @@ class Login {
             'name' => $user->global_name ?? ($user->username . '#' . $user->discriminator),
         ]);
 
-        self::doLogin($user = DB::queryFirstRow(<<<SQL
+        $user = DB::queryFirstRow(<<<SQL
             SELECT `id`, `is_enabled`
             FROM `users`
             WHERE `id` = %s
-        SQL, $user->id));
+        SQL, $user->id);
+
+        self::doLogin($user, $_COOKIE['authum_from'] ?? null);
     }
 }

@@ -1,6 +1,5 @@
-<?php foreach ($_SESSION['errors'] ?? [] as $error) : ?>
+<?php foreach ($errors as $error) : ?>
     <div class="error">
         <?= e($error) ?>
     </div>
-<?php endforeach; ?>
-<?php $_SESSION['errors'] = [] ?>
+<?php endforeach ?>

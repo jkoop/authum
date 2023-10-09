@@ -15,9 +15,8 @@ class Gates {
      */
     static function loggedIn() {
         if (!Checks::isLoggedIn()) {
-            $_SESSION['intended'] = REQUEST_PATH . '?' . http_build_query($_GET);
-            setcookie("authum_session", '', 0, path: '/', httponly: true);
-            redirect('/login');
+            setcookie("authum_session", '', 1, path: '/', httponly: true);
+            redirect('/login?', http_build_query(['from' => REQUEST_PATH . '?' . http_build_query($_GET)]));
         }
     }
 

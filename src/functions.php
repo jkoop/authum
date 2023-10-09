@@ -79,16 +79,24 @@ function e(string $iffyString): string {
     return htmlentities($iffyString, encoding: 'utf-8');
 }
 
+global $errors;
+$errors = json_decode($_COOKIE['authum_errors'] ?? '');
+if (!is_array($errors)) $errors = [];
+if (!array_is_list($errors)) $errors = [];
+
 function addError(string $message): void {
-    $_SESSION['errors'] ??= [];
-    $_SESSION['errors'][] = $message;
+    global $errors;
+    $errors[] = $message;
+    if (!headers_sent())
+        setcookie("authum_errors", json_encode($errors), time() + config('session.timeout'), path: '/', httponly: true);
 }
 
 /**
  * @return void|never
  */
 function responseFormValidationFailMaybe(string $forceUrl = null) {
-    if (count($_SESSION['errors'] ?? []) > 0) {
+    global $errors;
+    if (count($errors) > 0) {
         if (is_null($forceUrl)) {
             redirectBack();
         } else {
@@ -164,10 +172,18 @@ function loggedInUser(): array {
 
         if (strlen($sessionId ?? '') != 42) $sessionId = null;
 
-        if (!is_null($sessionId) && DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s AND last_used_at > %i)', $sessionId, time() - config('session.timeout')) == 1) {
-            if (!headers_sent()) setcookie("authum_session", $_COOKIE['authum_session'], time() + config('session.timeout'), path: '/', httponly: true); // refresh the cookie
+        if (
+            !is_null($sessionId)
+            && DB::queryFirstField('SELECT EXISTS(SELECT * FROM `sessions` WHERE `id` = %s AND last_used_at > %i)', $sessionId, time() - config('session.timeout')) == 1
+        ) {
+            if (!headers_sent())
+                setcookie("authum_session", $_COOKIE['authum_session'], time() + config('session.timeout'), path: '/', httponly: true); // refresh the cookie
+
             DB::query('UPDATE `sessions` SET `last_used_at` = UNIX_TIMESTAMP() WHERE `id` = %s', $sessionId);
             $user = DB::queryFirstRow('SELECT * FROM `users` WHERE `id` = (SELECT `user_id` FROM `sessions` WHERE `id` = %s) AND `is_enabled` = 1 LIMIT 1', $_COOKIE['authum_session']) ?? [];
+        } else {
+            if (!is_null($sessionId)) DB::query('DELETE FROM `sessions` WHERE `id` = %s', $sessionId);
+            if (!headers_sent()) setcookie("authum_session", '', 1, path: '/', httponly: true); // delete the cookie
         }
 
         if (empty($user) && !empty($id) && !empty($password)) {
@@ -191,6 +207,8 @@ function memo(string $key, callable $callable): mixed {
 }
 
 function view(string $viewPath, array $variables = []): void {
+    global $errors;
+    if (!headers_sent()) setcookie('authum_errors', '', 1, path: '/', httponly: true);
     extract($variables);
     include __DIR__ . '/views/' . $viewPath . '.php';
 }

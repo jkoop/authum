@@ -11,8 +11,6 @@ if (config('app.env') == 'local') {
     $whoops->register();
 }
 
-session_start();
-
 DB::$user = config('db.username');
 DB::$password = config('db.password');
 DB::$dbName = config('db.database');
@@ -27,7 +25,7 @@ doRouting([
     // requestMethod, path, responseFunction, ?gateFunction
     ['', '_authum/forward-auth', 'ForwardAuth::handle'],
     ['GET', '/', 'Home::view', 'loggedIn'],
-    ['GET', 'login', 'Login::view'], // , 'notLoggedIn'], // We need to use a controller because of forward auth
+    ['GET', 'login', 'Login::view'],
     ['POST', 'login', 'Login::tryLogin', 'notLoggedIn'],
     ['GET', 'logout', 'Login::doLogout', 'loggedIn'],
     ['POST', 'impersonate', 'Login::impersonate', 'admin'],
