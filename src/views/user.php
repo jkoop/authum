@@ -29,6 +29,7 @@
                 <label>ID <input name="id" minlength="1" maxlength="20" placeholder="leave blank for random" /></label><br>
                 <label>Name <input name="name" maxlength="255" autofocus required /></label><br>
             <?php endif ?>
+            <label>Comment <input name="comment" maxlength="255" value="<?= e($user['comment']) ?>" placeholder="only visible to admins" /></label><br>
             <label><input name="is_admin" type="checkbox" <?= $user['is_admin'] ? 'checked' : '' ?> /> Is admin?</label><br>
             <label><input name="is_enabled" type="checkbox" <?= $user['is_enabled'] ? 'checked' : '' ?> /> Is enabled?</label>
         </fieldset>

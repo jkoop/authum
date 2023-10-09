@@ -10,6 +10,7 @@ class User {
     static function new(): never { // the new user page
         $user = [
             'name' => 'New User',
+            'comment' => '',
             'is_admin' => 0,
             'is_enabled' => 1,
         ];
@@ -51,6 +52,7 @@ class User {
                 DB::insert('users', [
                     'id' => $userId,
                     'name' => substr($_POST['name'], 0, 255),
+                    'comment' => substr($_POST['comment'], 0, 255),
                     'is_admin' => isset($_POST['is_admin']),
                     'is_enabled' => isset($_POST['is_enabled']),
                 ]);
@@ -64,6 +66,7 @@ class User {
             DB::insertUpdate('users', [
                 'id' => $userId,
                 'name' => substr($_POST['name'], 0, 255),
+                'comment' => substr($_POST['comment'], 0, 255),
                 'is_admin' => isset($_POST['is_admin']),
                 'is_enabled' => isset($_POST['is_enabled']),
             ]);
