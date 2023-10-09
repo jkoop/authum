@@ -12,14 +12,25 @@
         <a href="/user/new">Create user</a>
     </fieldset>
 
-    <ul>
-        <?php foreach (DB::query('SELECT id, `name` FROM users ORDER BY `name`') as $user) : ?>
-            <li>
-                <a href="/user?id=<?= $user['id'] ?>"><?= e($user['name']) ?></a>
-                <?php view('discord-icon-link', ['id' => $user['id']]) ?>
-            </li>
-        <?php endforeach ?>
-    </ul>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>ID</th>
+                <th colspan="2">Is</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach (DB::query('SELECT `id`, `name`, `is_admin`, `is_enabled` FROM users ORDER BY `name`') as $user) : ?>
+                <tr>
+                    <td><a href="/user?id=<?= strtolower($user['id']) ?>"><?= e($user['name']) ?></a></td>
+                    <td><?= e(strtolower($user['id'])) ?> <?php view('discord-icon-link', ['id' => $user['id']]) ?></td>
+                    <td><?= $user['is_admin'] ? 'admin' : '' ?></td>
+                    <td><?= $user['is_enabled'] ? 'enabled' : '' ?></td>
+                </tr>
+            <?php endforeach ?>
+        </tbody>
+    </table>
 
     <?php view('logged-in-footer') ?>
 </body>

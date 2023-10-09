@@ -35,12 +35,7 @@
 
         <fieldset>
             <legend>Password</legend>
-            <table>
-                <tr>
-                    <th>New</th>
-                    <td><input name="password_new" type="password" /></td>
-                </tr>
-            </table>
+            <label>New <input name="password_new" type="password" /></label>
         </fieldset>
 
         <button type="submit">Save</button>
