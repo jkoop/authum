@@ -34,6 +34,7 @@ DROP FOREIGN KEY `user_user_group_ibfk_1`,
 ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 UPDATE `users` SET `id` = UPPER(SUBSTRING(MD5(UPPER(`id`)), 1, 20));
+UPDATE `users` SET `id` = 'admin' WHERE `id` = '73ACD9A5972130B75066';
 
 ALTER TABLE `users` ADD CONSTRAINT `user_id_format` CHECK (`id` REGEXP "^[a-z0-9_-]*$");
 

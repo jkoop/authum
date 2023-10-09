@@ -4,7 +4,7 @@ CREATE TABLE `users` (
     `password` VARCHAR(255) COLLATE "ascii_bin",
     `is_admin` TINYINT(1) NOT NULL,
     `is_enabled` TINYINT(1) NOT NULL,
-    CONSTRAINT user_id_format CHECK (id regexp "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$")
+    CONSTRAINT user_id_format CHECK (id is not null)
 );
 
 CREATE TABLE `email_addresses` (
