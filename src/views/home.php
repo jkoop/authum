@@ -20,7 +20,9 @@
         </ul>
     <?php endif ?>
 
-    <p>There may be more services than those listed above of which you are only permitted to access a subset.</p>
+    <?php if (count($services) != DB::queryFirstField('SELECT COUNT(*) FROM `services`')) : ?>
+        <p>There may be more services than those listed above of which you are only permitted to access a subset.</p>
+    <?php endif ?>
 
     <?php view('logged-in-footer') ?>
 </body>
