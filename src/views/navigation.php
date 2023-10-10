@@ -7,6 +7,7 @@
         <a href="/users" data-regex="/user(s|/|$)">Users</a><br>
         <a href="/groups" data-regex="/group(s|/|$)">Groups</a><br>
     <?php endif ?>
+    <a href="/profile">Profile</a>
 </fieldset>
 
 <?= scriptTag('navigation', async: true) ?>

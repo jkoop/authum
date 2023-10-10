@@ -47,6 +47,8 @@ class User {
             $userId = $_GET['id'];
         }
 
+        $userId = mb_convert_encoding($userId, 'ascii'); // force ascii
+        $userId = preg_replace('/[^a-z0-9_-]/i', '_', $userId);
         $userId = substr($userId, 0, 20);
 
         if ($createUser) {

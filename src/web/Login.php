@@ -124,12 +124,12 @@ class Login {
 
         DB::insertUpdate('users', [
             'id' => $user->id,
-            'name' => $user->global_name ?? ($user->username . '#' . $user->discriminator),
+            'name' => mb_convert_encoding($user->global_name ?? ($user->username . '#' . $user->discriminator), 'ascii'),
             'comment' => 'New from Discord',
             'is_admin' => 0,
             'is_enabled' => 0,
         ], [
-            'name' => $user->global_name ?? ($user->username . '#' . $user->discriminator),
+            'name' => mb_convert_encoding($user->global_name ?? ($user->username . '#' . $user->discriminator), 'ascii'),
         ]);
 
         $user = DB::queryFirstRow(<<<SQL

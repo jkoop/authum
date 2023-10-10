@@ -21,3 +21,4 @@ docker-compose.prod.yml
 update.sh
 db
 docker-compose.yml
+.*.swp
