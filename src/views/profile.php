@@ -22,7 +22,7 @@
         <fieldset>
             <legend>Password</legend>
             <label>New <input name="password" type="password" /></label><br>
-            <p style="margin-bottom: 0">This password lets you log in without having to use Discord. This can be useful for old browsers, slow connections, WebDAV, and <code>curl</code>.</p>
+            <p style="margin-bottom: 0">This password lets you log in without having to use Discord. This can be useful for old browsers, slow connections, WebDAV <a href="https://en.wikipedia.org/wiki/WebDAV" target="_blank">(?)</a>, <code>curl</code> <a href="https://en.wikipedia.org/wiki/CURL#curl" target="_blank">(?)</a>, etc.</p>
         </fieldset>
 
         <button type="submit">Save</button>

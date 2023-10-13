@@ -1,5 +1,5 @@
-body {
-    font-family: sans-serif;
+body, input {
+    font-family: 'Slabo 27px', slab-serif, sans-serif;
 }
 
 address {
