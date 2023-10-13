@@ -11,7 +11,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Slabo+27px&display=swap" rel="stylesheet">
     <?= styleTag('error', fullUrl: true) ?>
-    <?= styleTag('main', fullUrl: true) ?>
 </head>
 
 <body>
