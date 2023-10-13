@@ -47,7 +47,8 @@ class User {
             $userId = $_GET['id'];
         }
 
-        $userId = mb_convert_encoding($userId, 'ascii'); // force ascii
+        $userId = trim($userId);
+        $userId = transliterate($userId); // force ascii
         $userId = preg_replace('/[^a-z0-9_-]/i', '_', $userId);
         $userId = substr($userId, 0, 20);
 
@@ -55,8 +56,8 @@ class User {
             try {
                 DB::insert('users', [
                     'id' => $userId,
-                    'name' => substr($_POST['name'], 0, 255),
-                    'comment' => substr($_POST['comment'], 0, 255),
+                    'name' => substr(transliterate(trim($_POST['name'] ?? '')), 0, 255),
+                    'comment' => substr(transliterate(trim($_POST['comment'] ?? '')), 0, 255),
                     'is_admin' => isset($_POST['is_admin']),
                     'is_enabled' => isset($_POST['is_enabled']),
                 ]);
@@ -69,8 +70,8 @@ class User {
         } else {
             DB::insertUpdate('users', [
                 'id' => $userId,
-                'name' => substr($_POST['name'], 0, 255),
-                'comment' => substr($_POST['comment'], 0, 255),
+                'name' => substr(transliterate(trim($_POST['name'] ?? '')), 0, 255),
+                'comment' => substr(transliterate(trim($_POST['comment'] ?? '')), 0, 255),
                 'is_admin' => isset($_POST['is_admin']),
                 'is_enabled' => isset($_POST['is_enabled']),
             ]);

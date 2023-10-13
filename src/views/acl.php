@@ -79,7 +79,7 @@
     <p>When a forward auth request is received, the rules in this ACL are compared one-by-one in order from top to bottom. The first rule to match determines the allowed-ness (allow/deny). The method "HEAD" will be processed as if it is "GET". Paths never begin with a slash.</p>
 
     <form method="post" onSubmit="setTheFieldNames()">
-        <table>
+        <table style="border-collapse:collapse">
             <thead>
                 <tr>
                     <th colspan="2">Service(s)</th>

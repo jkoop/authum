@@ -122,6 +122,12 @@ function dd($data): never {
     exit();
 }
 
+function transliterate(string $string): string {
+    $string = \Transliterator::create('NFKC; [:Nonspacing Mark:] Remove; NFKC; Any-Latin; Latin-ASCII;')->transliterate($string);
+    $string = mb_convert_encoding($string, 'ascii');
+    return $string;
+}
+
 function doesRouteStringMatchString(string $routeString, string $string): bool {
     return ltrim($routeString, '/') == ltrim($string, '/');
 }

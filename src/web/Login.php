@@ -122,14 +122,18 @@ class Login {
 
         $user = json_decode($response) ?? abort(500, "Discord gave a bad response (user data)");
 
+        $name = $user->global_name ?? ($user->username . '#' . $user->discriminator);
+        $name = transliterate($name);
+        $name = substr($name, 0, 255);
+
         DB::insertUpdate('users', [
             'id' => $user->id,
-            'name' => mb_convert_encoding($user->global_name ?? ($user->username . '#' . $user->discriminator), 'ascii'),
+            'name' => $name,
             'comment' => 'New from Discord',
             'is_admin' => 0,
             'is_enabled' => 0,
         ], [
-            'name' => mb_convert_encoding($user->global_name ?? ($user->username . '#' . $user->discriminator), 'ascii'),
+            'name' => $name,
         ]);
 
         $user = DB::queryFirstRow(<<<SQL

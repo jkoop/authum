@@ -6,7 +6,9 @@ use DB;
 
 class Profile {
     public static function update() {
-        $name = substr(mb_convert_encoding(trim($_POST['name'] ?? ''), 'ascii'), 0, 255);
+        $name = trim($_POST['name'] ?? '');
+        $name = transliterate($name);
+        $name = substr($name, 0, 255);
         $password = $_POST['password'] ?? '';
         $userId = loggedInUser()['id'];
 
