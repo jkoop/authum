@@ -24,6 +24,8 @@ body > * {
 
 hr {
     width: calc(100% - 2rem);
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
 @media screen and (min-width: 500px) {
@@ -33,7 +35,7 @@ hr {
     }
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
     body {
         background-color: #111;
     }
@@ -46,4 +48,4 @@ hr {
     p {
         color: white;
     }
-}
+} */

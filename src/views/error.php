@@ -19,12 +19,15 @@
     <?php if (strlen($message ?? '')) : ?>
         <p><?= e($message) ?></p>
     <?php endif ?>
-    <?php if (Checks::isLoggedIn()) : ?>
-        <?php view('logged-in-footer') ?>
-    <?php else : ?>
-        <hr>
-        <address>Authum<?= '' /* '/' . e(AUTHUM_VERSION) */ ?></address>
-    <?php endif ?>
+    <hr>
+    <address>
+        Authum<?= '' /* '/' . e(AUTHUM_VERSION) */ ?>
+        <?php if (Checks::isLoggedIn()) : ?>
+            - logged in as <?= e(loggedInUser()['name']) ?> <?php view('discord-icon-link', ['id' => loggedInUser()['id']]) ?>
+            - <a href="<?= config('app.url') ?>">Home</a>
+            - <a href="<?= config('app.url') ?>/logout">Logout</a>
+        <?php endif ?>
+    </address>
 </body>
 
 </html>
