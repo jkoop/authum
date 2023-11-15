@@ -288,11 +288,12 @@ function getTypeFromId(string $id): ?string {
     return null;
 }
 
-function scriptTag(string $filename, bool $fullUrl = false, bool $async = false): string {
+function scriptTag(string $filename, bool $fullUrl = false, bool $async = false, bool $module = false): string {
     $result = '<script src="';
     if ($fullUrl) $result .= config('app.url');
     $result .= '/' . $filename . '.js?v=' . substr(md5(file_get_contents(publicPath($filename . '.js'))), -8) . '"';
     if ($async) $result .= " async";
+    if ($module) $result .= " type=module";
     $result .= '></script>';
     return $result;
 }
