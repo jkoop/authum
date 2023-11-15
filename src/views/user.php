@@ -27,6 +27,7 @@
                 <?php if (isset($user['id'])) : ?>
                     <label>ID <?php view('discord-icon-link', ['id' => $user['id']]) ?> <input value="<?= e($user['id']) ?>" readonly /></label><br>
                     <label>Name <input name="name" maxlength="255" value="<?= e($user['name']) ?>" required /></label><br>
+                    Created at: <?= date('r', $user['created_at']) ?><br>
                 <?php else : ?>
                     <label>ID <input name="id" minlength="1" maxlength="20" placeholder="leave blank for random" /></label><br>
                     <label>Name <input name="name" maxlength="255" autofocus required /></label><br>

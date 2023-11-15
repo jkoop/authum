@@ -14,6 +14,7 @@
                 <legend>General</legend>
                 <?php if (isset($group['id'])) : ?>
                     <label>Name <input name="name" maxlength="255" value="<?= e($group['name']) ?>" required /></label><br>
+                    Created at: <?= date('r', $group['created_at']) ?><br>
                 <?php else : ?>
                     <label>Name <input name="name" maxlength="255" autofocus required /></label><br>
                 <?php endif ?>
