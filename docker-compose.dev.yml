@@ -1,4 +1,3 @@
-version: '3'
 services:
   authum:
     image: webdevops/php-nginx:8.2
