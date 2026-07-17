@@ -36,4 +36,41 @@ labels:
 # Login UI (AUTHUM_DOMAIN) — no ForwardAuth; route to the authum service
 ```
 
-Register each app in the admin **Sites** TSV (`site_id`, `host`, identity header names) and allow paths in the **ACL** TSV (`user`, `site_id`, `path_prefix`, `method`, `effect`). After login, users bounce through `https://{host}/_authum/login` so each site can set its own cookie (same session id everywhere).
+Register each app in the admin **Sites** TSV and allow paths in the **ACL** TSV. After login, users bounce through `https://{host}/_authum/login` so each site can set its own cookie (same session id everywhere).
+
+## Sites TSV
+
+| Column | Meaning |
+|--------|---------|
+| `site_id` | Stable id referenced by ACL rows |
+| `host` | Hostname only (no `https://`) |
+| `user_header` / `user_id_header` / `user_name_header` | Response headers Traefik must forward |
+
+Example:
+
+```tsv
+site_id	host	user_header	user_id_header	user_name_header
+jellyfin	media.example.com	Remote-User	Remote-User-Id	Remote-User-Name
+```
+
+## ACL TSV
+
+First matching row wins; no match means deny.
+
+| Column | Meaning |
+|--------|---------|
+| `user` | `*` (anyone), `id:username` (match on numeric id), or `@group` |
+| `site_id` | Sites id or `*` |
+| `path_prefix` | Path must start with this |
+| `method` | HTTP method or `*` |
+| `effect` | `allow` or `deny` |
+
+Example:
+
+```tsv
+user	site_id	path_prefix	method	effect
+@friends	jellyfin	/	*	allow
+1:admin	*	/	*	allow
+```
+
+Create groups and memberships in the admin UI, then reference them as `@friends` instead of duplicating a row per person.

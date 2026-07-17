@@ -27,9 +27,12 @@ pub fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.content_type = .HTML;
         res.body = try std.fmt.allocPrint(res.arena,
             \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
-            \\<p>Logged in as {s} (id {d}).</p>
+            \\<h1>Account</h1>
+            \\<p>Logged in as <strong>{s}</strong> (id {d}).</p>
+            \\<p>This login is shared across the sites your admin has allowed. To sign out of a specific app, use that site’s logout (or visit <code>/_authum/logout</code> on that host). Logging out here ends the session everywhere.</p>
             \\{s}{s}
             \\<h2>Change password</h2>
+            \\<p>Use a password manager–friendly unique password. Changing it here updates the single account used for all sites.</p>
             \\<form method="POST" action="/password">
             \\<p>Current password: <input name="current_password" type="password" required autocomplete="current-password"></p>
             \\<p>New password: <input name="new_password" type="password" required autocomplete="new-password"></p>
@@ -95,10 +98,20 @@ pub fn loginGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     else
         "";
 
+    const context_html = if (from_site.len > 0)
+        try std.fmt.allocPrint(res.arena,
+            \\<p>Sign in to continue to <strong>{s}</strong>. After login you will return to that site with a session cookie for that host.</p>
+        , .{site_esc})
+    else
+        \\<p>Sign in to manage your account password, or open a protected site and you will be sent here automatically.</p>
+    ;
+
     res.content_type = .HTML;
     res.body = try std.fmt.allocPrint(res.arena,
         \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Login</title></head><body>
         \\<h1>Login</h1>
+        \\<p>This is the authum login domain. Your password is entered only here—not on each app—so password managers stay happy.</p>
+        \\{s}
         \\{s}
         \\<form method="POST" action="/login" autocomplete="on">
         \\<input type="hidden" name="from_site" value="{s}">
@@ -108,7 +121,7 @@ pub fn loginGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         \\<p><button type="submit">Log in</button></p>
         \\</form>
         \\</body></html>
-    , .{ err_html, site_esc, path_esc });
+    , .{ context_html, err_html, site_esc, path_esc });
 }
 
 pub fn loginPost(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -328,8 +341,15 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Admin</title></head><body>
         \\<h1>Authum Admin</h1>
         \\<p><a href="/logout">Log out</a></p>
+        \\<p>Traefik calls <code>/auth/verify</code> on each protected request. Unknown hosts are denied. Allowed requests get the identity headers named in Sites. After form login, users hit <code>https://&#123;host&#125;/_authum/login</code> once so each site gets its own cookie (same session id).</p>
         \\
         \\<h2>ACL</h2>
+        \\<p>Tab-separated; first matching row wins; no match means deny. Columns: <code>user</code>, <code>site_id</code>, <code>path_prefix</code>, <code>method</code>, <code>effect</code> (<code>allow</code>/<code>deny</code>).</p>
+        \\<ul>
+        \\<li><code>user</code>: <code>*</code> (anyone), <code>id:username</code> (numeric id is what matches; username is a label), or <code>@group</code> (any member of that group).</li>
+        \\<li><code>site_id</code>: a Sites id or <code>*</code> — not the hostname.</li>
+        \\<li><code>path_prefix</code> / <code>method</code>: path must start with the prefix; method is exact or <code>*</code>.</li>
+        \\</ul>
         \\{s}
         \\<p><a href="/admin/acl.tsv">Download ACL</a></p>
         \\<form method="POST" action="/admin/acl" enctype="multipart/form-data">
@@ -338,6 +358,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         \\</form>
         \\
         \\<h2>Sites</h2>
+        \\<p>Columns: <code>site_id</code>, <code>host</code> (no scheme), <code>user_header</code>, <code>user_id_header</code>, <code>user_name_header</code>. Configure Traefik <code>authResponseHeaders</code> to forward those header names. <code>site_id</code> is what ACL rows refer to.</p>
         \\{s}
         \\<p><a href="/admin/sites.tsv">Download Sites</a></p>
         \\<form method="POST" action="/admin/sites" enctype="multipart/form-data">
@@ -346,9 +367,11 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         \\</form>
         \\
         \\<h2>Users</h2>
+        \\<p>Usernames are <code>[A-Za-z0-9_]</code> only. The env admin user cannot be renamed or deleted; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup.</p>
         \\{s}
         \\
         \\<h2>Groups</h2>
+        \\<p>Put people in a group, then use <code>@groupname</code> in the ACL instead of repeating per-user rows. Renaming a group does not rewrite ACL text—update the TSV if you change the name. Deleting a group (or removing all members) makes <code>@name</code> rules stop matching.</p>
         \\{s}
         \\</body></html>
     , .{ acl_table, sites_table, rows.items, groups_html.items });
