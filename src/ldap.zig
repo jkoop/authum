@@ -216,12 +216,17 @@ fn sendResult(w: *std.Io.Writer, allocator: std.mem.Allocator, message_id: i64, 
     try w.writeAll(list.items);
 }
 
+const SearchAttr = struct {
+    name: []const u8,
+    values: []const []const u8,
+};
+
 fn sendSearchEntry(
     w: *std.Io.Writer,
     allocator: std.mem.Allocator,
     message_id: i64,
     dn: []const u8,
-    attrs: []const struct { name: []const u8, values: []const []const u8 },
+    attrs: []const SearchAttr,
 ) !void {
     var list: std.ArrayList(u8) = .empty;
     defer list.deinit(allocator);
@@ -376,7 +381,7 @@ fn handleSearch(app: *App, w: *std.Io.Writer, message_id: i64, base: []const u8,
     for (entries) |entry| {
         if (!dnInScope(entry.dn, base, scope, base_dn)) continue;
         if (!evalFilter(filter, entry)) continue;
-        var attr_list: std.ArrayList(struct { name: []const u8, values: []const []const u8 }) = .empty;
+        var attr_list: std.ArrayList(SearchAttr) = .empty;
         var it = entry.attrs.iterator();
         while (it.next()) |kv| {
             try attr_list.append(arena, .{ .name = kv.key_ptr.*, .values = kv.value_ptr.* });
