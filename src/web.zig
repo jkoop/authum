@@ -26,7 +26,7 @@ pub fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
         res.content_type = .HTML;
         res.body = try std.fmt.allocPrint(res.arena,
-            \\<!DOCTYPE html><html><body>
+            \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
             \\<p>Logged in as {s} (id {d}).</p>
             \\{s}{s}
             \\<h2>Change password</h2>
@@ -97,7 +97,7 @@ pub fn loginGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     res.content_type = .HTML;
     res.body = try std.fmt.allocPrint(res.arena,
-        \\<!DOCTYPE html><html><head><title>Login</title></head><body>
+        \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Login</title></head><body>
         \\<h1>Login</h1>
         \\{s}
         \\<form method="POST" action="/login" autocomplete="on">
@@ -259,7 +259,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     res.content_type = .HTML;
     res.body = try std.fmt.allocPrint(res.arena,
-        \\<!DOCTYPE html><html><head><title>Admin</title></head><body>
+        \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Admin</title></head><body>
         \\<h1>Authum Admin</h1>
         \\<p><a href="/logout">Log out</a></p>
         \\
@@ -306,7 +306,7 @@ pub fn aclUpload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             res.status = 400;
             res.content_type = .HTML;
             res.body = try std.fmt.allocPrint(res.arena,
-                \\<!DOCTYPE html><html><body>
+                \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
                 \\<p style="color:red">{s}</p>
                 \\<p><a href="/admin">Back</a></p>
                 \\</body></html>
@@ -342,7 +342,7 @@ pub fn sitesUpload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             res.status = 400;
             res.content_type = .HTML;
             res.body = try std.fmt.allocPrint(res.arena,
-                \\<!DOCTYPE html><html><body>
+                \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
                 \\<p style="color:red">{s}</p>
                 \\<p><a href="/admin">Back</a></p>
                 \\</body></html>

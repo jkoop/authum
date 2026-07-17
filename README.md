@@ -4,14 +4,22 @@ authum is a Traefik ForwardAuth server that logs users in with username/password
 
 ## Run
 
-```bash
-export AUTHUM_DOMAIN=login.example.com
-export AUTHUM_ADMIN_USER=admin
-export AUTHUM_ADMIN_PASSWORD=changeme
-export AUTHUM_LISTEN=0.0.0.0:8080
-export AUTHUM_DB_PATH=authum.db   # optional
+```yaml
+services:
+  authum:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      AUTHUM_DOMAIN: login.example.com
+      AUTHUM_ADMIN_USER: admin
+      AUTHUM_ADMIN_PASSWORD: changeme
+      AUTHUM_DB_PATH: /data/authum.db
+    volumes:
+      - authum-data:/data
 
-zig0.16 build run
+volumes:
+  authum-data:
 ```
 
 ## Traefik
