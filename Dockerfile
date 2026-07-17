@@ -46,4 +46,6 @@ RUN set -eux; \
 FROM scratch
 COPY --from=builder /src/zig-out/bin/authum /authum
 EXPOSE 8080
+# LDAP when AUTHUM_LDAP_LISTEN is set (e.g. 0.0.0.0:3893)
+EXPOSE 3893
 ENTRYPOINT ["/authum"]

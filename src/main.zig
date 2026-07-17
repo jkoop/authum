@@ -5,6 +5,7 @@ const app_mod = @import("app.zig");
 const acl_mod = @import("acl.zig");
 const sites_mod = @import("sites.zig");
 const templates_mod = @import("templates.zig");
+const ldap_mod = @import("ldap.zig");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
@@ -27,6 +28,7 @@ pub fn main(init: std.process.Init) !void {
     defer app.deinit();
 
     try app_mod.bootstrap(&app);
+    try ldap_mod.startBackground(&app);
 
     const address = try parseAddress(cfg.listen_host, cfg.listen_port);
     var server = try httpz.Server(*app_mod.App).init(io, allocator, .{
@@ -73,4 +75,6 @@ test {
     _ = @import("acl.zig");
     _ = @import("sites.zig");
     _ = @import("templates.zig");
+    _ = @import("ber.zig");
+    _ = @import("ldap.zig");
 }

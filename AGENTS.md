@@ -20,7 +20,8 @@ Local checkouts of dependencies also appear under `zig-pkg/` (gitignored). Prefe
 |------|------|
 | [`src/main.zig`](src/main.zig) | Entry: env config, httpz listen, route registration |
 | [`src/app.zig`](src/app.zig) | Shared `App` state (DB pool, ACL, sites, config), bootstrap, routes |
-| [`src/config.zig`](src/config.zig) | Env: `AUTHUM_DOMAIN`, `AUTHUM_ADMIN_USER`/`PASSWORD`, `AUTHUM_LISTEN`, `AUTHUM_DB_PATH` |
+| [`src/config.zig`](src/config.zig) | Env: `AUTHUM_DOMAIN`, `AUTHUM_ADMIN_USER`/`PASSWORD`, `AUTHUM_LISTEN`, `AUTHUM_DB_PATH`, optional `AUTHUM_LDAP_*` |
+| [`src/ldap.zig`](src/ldap.zig) / [`src/ber.zig`](src/ber.zig) | Minimal LDAP bind/search for Jellyfin (off unless `AUTHUM_LDAP_LISTEN`) |
 | [`src/verify.zig`](src/verify.zig) | `GET /auth/verify` — Traefik ForwardAuth + inferred `/_authum/*` |
 | [`src/web.zig`](src/web.zig) | Login domain UI: login/logout, admin, password change |
 | [`src/templates.zig`](src/templates.zig) / [`src/views/`](src/views/) | ztl templates (embedded) for login/account/admin |

@@ -74,3 +74,20 @@ user	site_id	path_prefix	method	effect
 ```
 
 Create groups and memberships in the admin UI, then reference them as `@friends` instead of duplicating a row per person.
+
+## LDAP (Jellyfin)
+
+Set `AUTHUM_LDAP_LISTEN` (for example `0.0.0.0:3893`) to enable a minimal LDAP server over the same users/groups. Optional `AUTHUM_LDAP_BASE_DN` defaults to `dc=authum,dc=local`.
+
+Suggested Jellyfin LDAP plugin settings:
+
+| Field | Value |
+|-------|--------|
+| LDAP Server | `ldap://authum:3893` |
+| Base DN | `dc=authum,dc=local` |
+| Bind User | empty (anonymous search) or `uid=admin,ou=people,dc=authum,dc=local` |
+| Search Filter | `(uid=*)` or `(memberof=cn=friends,ou=groups,dc=authum,dc=local)` |
+| Search Attributes | `uid` |
+| Uid / Username Attribute | `uid` |
+
+Tree layout: `ou=people,…` (`uid=<username>`) and `ou=groups,…` (`cn=<group>` with `member` / `memberOf`).
