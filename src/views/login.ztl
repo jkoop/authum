@@ -32,6 +32,10 @@
       <input name="password" type="password" autocomplete="current-password" required>
       <p style="margin-top:1rem"><button type="submit">Log in</button></p>
     </form>
+    <% if (@discord_enabled) { -%>
+      <p style="margin-top:1.25rem;color:var(--muted)">or</p>
+      <p><a class="btn" href="<%= @discord_href %>" style="display:inline-block;text-decoration:none">Log in with Discord</a></p>
+    <% } -%>
   </div>
 </div>
 </body>

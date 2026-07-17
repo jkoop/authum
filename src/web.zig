@@ -73,6 +73,16 @@ pub fn loginGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const from_path = q.get("from_path") orelse "/";
     const err = q.get("error") orelse "";
 
+    const discord_enabled = app.config.discord_client_id != null;
+    const discord_href = if (discord_enabled)
+        try std.fmt.allocPrint(
+            res.arena,
+            "/login/discord?from_site={s}&from_path={s}",
+            .{ try util.urlEncode(res.arena, from_site), try util.urlEncode(res.arena, from_path) },
+        )
+    else
+        "";
+
     res.content_type = .HTML;
     res.body = try app.templates.renderLogin(res.arena, .{
         .from_site = from_site,
@@ -80,6 +90,8 @@ pub fn loginGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         .err_msg = err,
         .has_from_site = from_site.len > 0,
         .has_error = err.len > 0,
+        .discord_enabled = discord_enabled,
+        .discord_href = discord_href,
     });
 }
 
@@ -98,6 +110,9 @@ pub fn loginPost(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     };
     if (!try password.verify(res.arena, app.io, found.password_hash, plain)) {
         return redirectLoginError(res, from_site, from_path, "invalid credentials");
+    }
+    if (!found.enabled) {
+        return redirectLoginError(res, from_site, from_path, "account pending admin approval");
     }
 
     const session_id = try db.createSession(conn, res.arena, app.io, found.id);
@@ -165,12 +180,31 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     try rows.appendSlice(res.arena,
         \\<table>
-        \\<tr><th>ID</th><th>Username / Password</th><th>Delete</th></tr>
+        \\<tr><th>ID</th><th>Username / Password</th><th>Enabled</th><th>Delete</th></tr>
     );
 
     for (users) |u| {
         const is_admin = std.mem.eql(u8, u.username, app.config.admin_user);
         const name_esc = try util.htmlEscape(res.arena, u.username);
+        const enabled_cell = if (is_admin)
+            "yes"
+        else if (u.enabled)
+            try std.fmt.allocPrint(res.arena,
+                \\<form method="POST" action="/admin/users/enabled">
+                \\<input type="hidden" name="id" value="{d}">
+                \\<input type="hidden" name="enabled" value="0">
+                \\<button type="submit" class="secondary">Disable</button>
+                \\</form>
+            , .{u.id})
+        else
+            try std.fmt.allocPrint(res.arena,
+                \\<form method="POST" action="/admin/users/enabled">
+                \\<input type="hidden" name="id" value="{d}">
+                \\<input type="hidden" name="enabled" value="1">
+                \\<button type="submit">Enable</button>
+                \\</form>
+            , .{u.id});
+
         if (is_admin) {
             const row = try std.fmt.allocPrint(res.arena,
                 \\<tr>
@@ -184,9 +218,10 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
                 \\<button type="submit">Save</button>
                 \\</form>
                 \\</td>
+                \\<td>{s}</td>
                 \\<td>—</td>
                 \\</tr>
-            , .{ u.id, u.id, name_esc, name_esc });
+            , .{ u.id, u.id, name_esc, name_esc, enabled_cell });
             try rows.appendSlice(res.arena, row);
         } else {
             const row = try std.fmt.allocPrint(res.arena,
@@ -200,6 +235,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
                 \\<button type="submit">Save</button>
                 \\</form>
                 \\</td>
+                \\<td>{s}</td>
                 \\<td>
                 \\<form method="POST" action="/admin/users/delete" style="display:inline" onsubmit="return confirm('Delete user?');">
                 \\<input type="hidden" name="id" value="{d}">
@@ -207,7 +243,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
                 \\</form>
                 \\</td>
                 \\</tr>
-            , .{ u.id, u.id, name_esc, u.id });
+            , .{ u.id, u.id, name_esc, enabled_cell, u.id });
             try rows.appendSlice(res.arena, row);
         }
     }
@@ -493,6 +529,35 @@ pub fn usersDelete(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     try db.deleteUser(conn, id);
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn usersSetEnabled(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const id_str = form.get("id") orelse "";
+    const enabled_str = form.get("enabled") orelse "";
+    const id = std.fmt.parseInt(i64, id_str, 10) catch {
+        res.status = 400;
+        res.body = "invalid id";
+        return;
+    };
+    const enabled = std.mem.eql(u8, enabled_str, "1");
+
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    const existing = (try db.findUserById(conn, res.arena, id)) orelse {
+        res.status = 404;
+        res.body = "user not found";
+        return;
+    };
+    if (std.mem.eql(u8, existing.username, app.config.admin_user) and !enabled) {
+        res.status = 400;
+        res.body = "cannot disable admin user";
+        return;
+    }
+    try db.setUserEnabled(conn, id, enabled);
     res.status = 302;
     res.header("Location", "/admin");
 }

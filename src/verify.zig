@@ -86,7 +86,7 @@ fn resolveUser(
                 const conn = try app.pool.acquire(app.io);
                 defer conn.release(app.io);
                 if (try db.findUserByUsername(conn, arena, creds.username)) |found| {
-                    if (try password.verify(arena, app.io, found.password_hash, creds.password)) {
+                    if (found.enabled and try password.verify(arena, app.io, found.password_hash, creds.password)) {
                         // Stateless for this request; no cookie required for API clients.
                         return .{
                             .session_id = "",

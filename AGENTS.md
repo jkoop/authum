@@ -55,4 +55,6 @@ Dependencies: [http.zig](https://github.com/karlseguin/http.zig) (`httpz`), [zql
 - **Zig 0.16 Io:** argon2, mutexes, clocks, and random go through `std.Io` (`app.io`), not old `std.time.timestamp` / `std.Thread.RwLock`.
 - **TSV parse errors** return `.invalid` with a message; uploads should surface them as 400. Don’t let raw parse errors fall through to the 500 handler.
 - **Usernames:** `[A-Za-z0-9_]` only (`util.validUsername`).
+- **`users.enabled` defaults on.** Discord-provisioned users start disabled; password/session/LDAP/Basic all refuse disabled accounts. Cannot disable `AUTHUM_ADMIN_USER`.
+- **Discord** needs both `AUTHUM_DISCORD_CLIENT_ID` and `AUTHUM_DISCORD_CLIENT_SECRET`; redirect is `https://{AUTHUM_DOMAIN}/login/discord/callback`.
 - **No Traefik config in-repo.** Downstream needs ForwardAuth → `/auth/verify` and `authResponseHeaders` (or regex) covering whatever identity header names sites TSV defines.

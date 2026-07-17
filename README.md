@@ -90,4 +90,12 @@ Suggested Jellyfin LDAP plugin settings:
 | Search Attributes | `uid` |
 | Uid / Username Attribute | `uid` |
 
-Tree layout: `ou=people,…` (`uid=<username>`) and `ou=groups,…` (`cn=<group>` with `member` / `memberOf`).
+Tree layout: `ou=people,…` (`uid=<username>`) and `ou=groups,…` (`cn=<group>` with `member` / `memberOf`). Disabled users are omitted.
+
+## Discord login
+
+Set both `AUTHUM_DISCORD_CLIENT_ID` and `AUTHUM_DISCORD_CLIENT_SECRET` to show **Log in with Discord**. Redirect URL:
+
+`https://{AUTHUM_DOMAIN}/login/discord/callback`
+
+New Discord accounts are created **disabled**; enable them in the admin Users table before they can use sites.

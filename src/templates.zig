@@ -20,12 +20,14 @@ pub const Templates = struct {
     login: ztl.Template(ZtlApp),
     account: ztl.Template(ZtlApp),
     admin: ztl.Template(ZtlApp),
+    pending: ztl.Template(ZtlApp),
 
     pub fn init(allocator: std.mem.Allocator) !Templates {
         var self: Templates = .{
             .login = ztl.Template(ZtlApp).init(allocator, .{}),
             .account = ztl.Template(ZtlApp).init(allocator, .{}),
             .admin = ztl.Template(ZtlApp).init(allocator, .{}),
+            .pending = ztl.Template(ZtlApp).init(allocator, .{}),
         };
         errdefer self.deinit();
 
@@ -42,6 +44,10 @@ pub const Templates = struct {
             std.log.err("admin template: {s}", .{report.message});
             return error.TemplateCompile;
         };
+        self.pending.compile(@embedFile("views/pending.ztl"), .{ .error_report = &report }) catch {
+            std.log.err("pending template: {s}", .{report.message});
+            return error.TemplateCompile;
+        };
         return self;
     }
 
@@ -49,6 +55,7 @@ pub const Templates = struct {
         self.login.deinit();
         self.account.deinit();
         self.admin.deinit();
+        self.pending.deinit();
     }
 
     pub fn renderLogin(self: *Templates, arena: std.mem.Allocator, args: anytype) ![]u8 {
@@ -61,6 +68,10 @@ pub const Templates = struct {
 
     pub fn renderAdmin(self: *Templates, arena: std.mem.Allocator, args: anytype) ![]u8 {
         return render(&self.admin, arena, args);
+    }
+
+    pub fn renderPending(self: *Templates, arena: std.mem.Allocator, args: anytype) ![]u8 {
+        return render(&self.pending, arena, args);
     }
 
     fn render(tmpl: anytype, arena: std.mem.Allocator, args: anytype) ![]u8 {
@@ -85,6 +96,8 @@ test "templates compile and render" {
         .err_msg = "",
         .has_from_site = true,
         .has_error = false,
+        .discord_enabled = false,
+        .discord_href = "",
     });
     defer std.testing.allocator.free(login);
     try std.testing.expect(std.mem.indexOf(u8, login, "authum") != null);

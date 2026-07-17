@@ -43,7 +43,7 @@
     </form>
 
     <h2>Users</h2>
-    <p class="lede">Usernames are <code>[A-Za-z0-9_]</code> only. The env admin user cannot be renamed or deleted; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup.</p>
+    <p class="lede">Usernames are <code>[A-Za-z0-9_]</code> only. The env admin user cannot be renamed, deleted, or disabled; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup. Discord sign-ups start <strong>disabled</strong> until you enable them here.</p>
     <%= safe @users_html %>
 
     <h2>Groups</h2>

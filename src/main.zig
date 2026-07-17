@@ -77,4 +77,5 @@ test {
     _ = @import("templates.zig");
     _ = @import("ber.zig");
     _ = @import("ldap.zig");
+    _ = @import("discord.zig");
 }

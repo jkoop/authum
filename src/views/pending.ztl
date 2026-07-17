@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pending · authum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<% @include('styles') %>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">authum</div>
+  <h1>Account pending</h1>
+  <div class="panel stack">
+    <% if (@newly_created) { -%>
+      <p>Thanks, <strong><%= @username %></strong>. Your Discord account is linked, but an admin still needs to enable it before you can use protected sites.</p>
+    <% } else { -%>
+      <p>Hi <strong><%= @username %></strong> — your account is disabled. Ask an admin to enable it.</p>
+    <% } -%>
+    <p class="lede">You can close this page. After you’re enabled, log in with Discord again.</p>
+    <p><a href="/login">Back to login</a></p>
+  </div>
+</div>
+</body>
+</html>

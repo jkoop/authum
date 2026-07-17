@@ -416,6 +416,7 @@ fn buildDirectory(app: *App, arena: std.mem.Allocator) ![]Entry {
     }
 
     for (users) |u| {
+        if (!u.enabled) continue;
         const dn = try std.fmt.allocPrint(arena, "uid={s},{s}", .{ u.username, people_ou });
         var attrs: std.StringHashMapUnmanaged([]const []const u8) = .empty;
         const oc = try arena.dupe([]const u8, &.{ "top", "person", "organizationalPerson", "inetOrgPerson" });
@@ -509,6 +510,7 @@ fn verifyPassword(app: *App, username: []const u8, plain: []const u8) !bool {
         app.allocator.free(found.username);
         app.allocator.free(found.password_hash);
     }
+    if (!found.enabled) return false;
     return try password.verify(app.allocator, app.io, found.password_hash, plain);
 }
 

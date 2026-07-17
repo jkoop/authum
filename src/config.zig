@@ -16,6 +16,9 @@ pub const Config = struct {
     /// null means LDAP disabled
     ldap_listen: ?Listen,
     ldap_base_dn: []const u8,
+    /// null means Discord login disabled
+    discord_client_id: ?[]const u8,
+    discord_client_secret: ?[]const u8,
 
     pub fn fromEnv(arena: std.mem.Allocator, environ: *const std.process.Environ.Map) !Config {
         const domain = try required(arena, environ, "AUTHUM_DOMAIN");
@@ -60,6 +63,19 @@ pub const Config = struct {
         else
             try arena.dupe(u8, "dc=authum,dc=local");
 
+        var discord_client_id: ?[]const u8 = null;
+        var discord_client_secret: ?[]const u8 = null;
+        if (environ.get("AUTHUM_DISCORD_CLIENT_ID")) |id| {
+            if (id.len > 0) {
+                if (environ.get("AUTHUM_DISCORD_CLIENT_SECRET")) |secret| {
+                    if (secret.len > 0) {
+                        discord_client_id = try arena.dupe(u8, id);
+                        discord_client_secret = try arena.dupe(u8, secret);
+                    }
+                }
+            }
+        }
+
         return .{
             .domain = domain,
             .admin_user = admin_user,
@@ -69,6 +85,8 @@ pub const Config = struct {
             .db_path = db_path,
             .ldap_listen = ldap_listen,
             .ldap_base_dn = ldap_base_dn,
+            .discord_client_id = discord_client_id,
+            .discord_client_secret = discord_client_secret,
         };
     }
 };

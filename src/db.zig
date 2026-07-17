@@ -6,6 +6,7 @@ const util = @import("util.zig");
 pub const User = struct {
     id: i64,
     username: []const u8,
+    enabled: bool,
 };
 
 pub const Group = struct {
@@ -29,7 +30,9 @@ const schema =
     \\  id integer primary key,
     \\  username text not null unique,
     \\  password_hash text not null,
-    \\  created_at integer not null
+    \\  created_at integer not null,
+    \\  enabled integer not null default 1,
+    \\  discord_id text
     \\);
     \\create table if not exists sessions (
     \\  id text primary key,
@@ -65,6 +68,13 @@ const schema =
 pub fn migrate(conn: zqlite.Conn, _: ?*anyopaque) !void {
     try conn.execNoArgs(schema);
     try conn.execNoArgs("pragma foreign_keys = on");
+    // Additive migrations for existing databases.
+    conn.execNoArgs("alter table users add column enabled integer not null default 1") catch {};
+    conn.execNoArgs("alter table users add column discord_id text") catch {};
+    try conn.execNoArgs(
+        \\create unique index if not exists users_discord_id_unique
+        \\on users(discord_id) where discord_id is not null
+    );
 }
 
 pub fn onConnection(conn: zqlite.Conn, _: ?*anyopaque) !void {
@@ -91,7 +101,7 @@ pub fn seedAdmin(
         );
     } else {
         try conn.exec(
-            "insert into users (username, password_hash, created_at) values (?1, ?2, ?3)",
+            "insert into users (username, password_hash, created_at, enabled) values (?1, ?2, ?3, 1)",
             .{ username, hash, now },
         );
     }
@@ -150,10 +160,37 @@ pub fn createUser(
     const hash = try password.hash(allocator, io, plain_password);
     defer allocator.free(hash);
     try conn.exec(
-        "insert into users (username, password_hash, created_at) values (?1, ?2, ?3)",
+        "insert into users (username, password_hash, created_at, enabled) values (?1, ?2, ?3, 1)",
         .{ username, hash, util.unixNow(io) },
     );
     return conn.lastInsertedRowId();
+}
+
+/// Create a Discord-provisioned user (disabled until an admin enables them).
+pub fn createDiscordUser(
+    conn: zqlite.Conn,
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    username: []const u8,
+    discord_id: []const u8,
+) !i64 {
+    const plain = try randomPassword(allocator, io);
+    defer allocator.free(plain);
+    const hash = try password.hash(allocator, io, plain);
+    defer allocator.free(hash);
+    try conn.exec(
+        \\insert into users (username, password_hash, created_at, enabled, discord_id)
+        \\values (?1, ?2, ?3, 0, ?4)
+    ,
+        .{ username, hash, util.unixNow(io), discord_id },
+    );
+    return conn.lastInsertedRowId();
+}
+
+fn randomPassword(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
+    var buf: [64]u8 = undefined;
+    util.randomHex(io, 32, &buf);
+    return try allocator.dupe(u8, buf[0..]);
 }
 
 pub fn listUsers(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]User {
@@ -163,12 +200,13 @@ pub fn listUsers(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]User {
         list.deinit(allocator);
     }
 
-    var rows = try conn.rows("select id, username from users order by id", .{});
+    var rows = try conn.rows("select id, username, enabled from users order by id", .{});
     defer rows.deinit();
     while (rows.next()) |row| {
         try list.append(allocator, .{
             .id = row.int(0),
             .username = try allocator.dupe(u8, row.text(1)),
+            .enabled = row.int(2) != 0,
         });
     }
     if (rows.err) |err| return err;
@@ -179,9 +217,9 @@ pub fn findUserById(
     conn: zqlite.Conn,
     allocator: std.mem.Allocator,
     id: i64,
-) !?struct { id: i64, username: []u8, password_hash: []u8 } {
+) !?struct { id: i64, username: []u8, password_hash: []u8, enabled: bool } {
     const row = (try conn.row(
-        "select id, username, password_hash from users where id = ?1",
+        "select id, username, password_hash, enabled from users where id = ?1",
         .{id},
     )) orelse return null;
     defer row.deinit();
@@ -189,6 +227,7 @@ pub fn findUserById(
         .id = row.int(0),
         .username = try allocator.dupe(u8, row.text(1)),
         .password_hash = try allocator.dupe(u8, row.text(2)),
+        .enabled = row.int(3) != 0,
     };
 }
 
@@ -337,9 +376,9 @@ pub fn findUserByUsername(
     conn: zqlite.Conn,
     allocator: std.mem.Allocator,
     username: []const u8,
-) !?struct { id: i64, username: []u8, password_hash: []u8 } {
+) !?struct { id: i64, username: []u8, password_hash: []u8, enabled: bool } {
     const row = (try conn.row(
-        "select id, username, password_hash from users where username = ?1",
+        "select id, username, password_hash, enabled from users where username = ?1",
         .{username},
     )) orelse return null;
     defer row.deinit();
@@ -347,7 +386,37 @@ pub fn findUserByUsername(
         .id = row.int(0),
         .username = try allocator.dupe(u8, row.text(1)),
         .password_hash = try allocator.dupe(u8, row.text(2)),
+        .enabled = row.int(3) != 0,
     };
+}
+
+pub fn findUserByDiscordId(
+    conn: zqlite.Conn,
+    allocator: std.mem.Allocator,
+    discord_id: []const u8,
+) !?struct { id: i64, username: []u8, enabled: bool } {
+    const row = (try conn.row(
+        "select id, username, enabled from users where discord_id = ?1",
+        .{discord_id},
+    )) orelse return null;
+    defer row.deinit();
+    return .{
+        .id = row.int(0),
+        .username = try allocator.dupe(u8, row.text(1)),
+        .enabled = row.int(2) != 0,
+    };
+}
+
+pub fn setUserEnabled(conn: zqlite.Conn, id: i64, enabled: bool) !void {
+    try conn.exec("update users set enabled = ?1 where id = ?2", .{ if (enabled) @as(i64, 1) else @as(i64, 0), id });
+}
+
+pub fn usernameTaken(conn: zqlite.Conn, username: []const u8) !bool {
+    if (try conn.row("select 1 from users where username = ?1", .{username})) |row| {
+        row.deinit();
+        return true;
+    }
+    return false;
 }
 
 pub fn createSession(conn: zqlite.Conn, allocator: std.mem.Allocator, io: std.Io, user_id: i64) ![]u8 {
@@ -369,7 +438,7 @@ pub fn sessionUser(conn: zqlite.Conn, allocator: std.mem.Allocator, session_id: 
         \\select sessions.id, users.id, users.username
         \\from sessions
         \\join users on users.id = sessions.user_id
-        \\where sessions.id = ?1
+        \\where sessions.id = ?1 and users.enabled = 1
     , .{session_id})) orelse return null;
     defer row.deinit();
     return .{

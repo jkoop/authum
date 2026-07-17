@@ -8,6 +8,7 @@ const templates_mod = @import("templates.zig");
 const db = @import("db.zig");
 const verify = @import("verify.zig");
 const web = @import("web.zig");
+const discord = @import("discord.zig");
 
 pub const App = struct {
     io: std.Io,
@@ -93,6 +94,9 @@ pub fn registerRoutes(app: *App, router: anytype) void {
     router.post("/admin/users", web.usersCreate, .{});
     router.post("/admin/users/update", web.usersUpdate, .{});
     router.post("/admin/users/delete", web.usersDelete, .{});
+    router.post("/admin/users/enabled", web.usersSetEnabled, .{});
+    router.get("/login/discord", discord.loginStart, .{});
+    router.get("/login/discord/callback", discord.loginCallback, .{});
     router.post("/admin/groups", web.groupsCreate, .{});
     router.post("/admin/groups/update", web.groupsUpdate, .{});
     router.post("/admin/groups/delete", web.groupsDelete, .{});
