@@ -20,11 +20,12 @@
     <p class="lede">Traefik calls <code>/auth/verify</code> on each protected request. Unknown hosts are denied. Allowed requests get the identity headers named in Sites. After form login, users hit <code>https://{host}/_authum/login</code> once so each site gets its own cookie (same session id).</p>
 
     <h2>ACL</h2>
-    <p class="lede">Tab-separated; first matching row wins; no match means deny. Columns: <code>user</code>, <code>site_id</code>, <code>path_prefix</code>, <code>method</code>, <code>effect</code> (<code>allow</code>/<code>deny</code>).</p>
+    <p class="lede">Tab-separated; first matching row wins; no match means deny. Columns: <code>user</code>, <code>site_id</code>, <code>path</code>, <code>method</code>, <code>effect</code> (<code>allow</code>/<code>deny</code>).</p>
     <ul class="help">
-      <li><code>user</code>: <code>*</code> (anyone), <code>id:username</code> (numeric id is what matches; username is a label), or <code>@group</code> (any member of that group).</li>
+      <li><code>user</code>: <code>*</code> (anyone), <code>id:username</code> (numeric id is what matches; username is a label — renames do not break ACL), or <code>@group</code> (any member of that group).</li>
       <li><code>site_id</code>: a Sites id or <code>*</code> — not the hostname.</li>
-      <li><code>path_prefix</code> / <code>method</code>: path must start with the prefix; method is exact or <code>*</code>.</li>
+      <li><code>path</code>: RE2-style regex against the request path (e.g. <code>^/</code>, <code>(?i)\.pdf$</code>). Invalid regex is rejected on upload.</li>
+      <li><code>method</code>: exact HTTP method or <code>*</code>.</li>
     </ul>
     <%= safe @acl_table %>
     <p><a href="/admin/acl.tsv">Download ACL</a></p>

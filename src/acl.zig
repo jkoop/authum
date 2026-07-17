@@ -1,4 +1,5 @@
 const std = @import("std");
+const regex = @import("regex");
 
 pub const Effect = enum { allow, deny };
 
@@ -11,7 +12,8 @@ pub const Subject = union(enum) {
 pub const Rule = struct {
     subject: Subject,
     site_id: []const u8, // "*" or exact site_id
-    path_prefix: []const u8,
+    path_pattern: []const u8, // regex source (for display / source TSV)
+    path_re: regex.Regexp,
     method: []const u8, // "*" or method
     effect: Effect,
 };
@@ -26,27 +28,33 @@ pub const Acl = struct {
     mutex: std.Io.Mutex = .init,
     rules: []Rule = &.{},
     source: []const u8 = "",
+    scratch: regex.Scratch,
 
     pub fn init(allocator: std.mem.Allocator) Acl {
-        return .{ .allocator = allocator };
+        return .{
+            .allocator = allocator,
+            .scratch = .init(allocator),
+        };
     }
 
     pub fn deinit(self: *Acl) void {
         self.freeOwned();
+        self.scratch.deinit();
     }
 
-    fn freeRule(allocator: std.mem.Allocator, rule: Rule) void {
+    fn freeRule(allocator: std.mem.Allocator, rule: *Rule) void {
         switch (rule.subject) {
             .group => |name| allocator.free(name),
             .any, .user_id => {},
         }
         allocator.free(rule.site_id);
-        allocator.free(rule.path_prefix);
+        allocator.free(rule.path_pattern);
         allocator.free(rule.method);
+        rule.path_re.deinit();
     }
 
     fn freeOwned(self: *Acl) void {
-        for (self.rules) |rule| freeRule(self.allocator, rule);
+        for (self.rules) |*rule| freeRule(self.allocator, rule);
         self.allocator.free(self.rules);
         self.allocator.free(self.source);
         self.rules = &.{};
@@ -58,7 +66,7 @@ pub const Acl = struct {
     pub fn loadTsv(self: *Acl, io: std.Io, tsv: []const u8, msg_allocator: std.mem.Allocator) !LoadResult {
         var rules: std.ArrayList(Rule) = .empty;
         errdefer {
-            for (rules.items) |rule| freeRule(self.allocator, rule);
+            for (rules.items) |*rule| freeRule(self.allocator, rule);
             rules.deinit(self.allocator);
         }
 
@@ -85,7 +93,7 @@ pub const Acl = struct {
             const method_col = cols[3];
             const effect_col = cols[4];
 
-            // Header row: accept site_id or legacy host as the second column name.
+            // Header row: site_id or legacy host; path or legacy path_prefix.
             if (std.mem.eql(u8, user_col, "user") and (site_col.len == 0 or
                 std.mem.eql(u8, site_col, "site_id") or
                 std.mem.eql(u8, site_col, "host"))) continue;
@@ -117,18 +125,20 @@ pub const Acl = struct {
                         .{ line_no, user_col },
                     ) };
                 };
+                // Username after ':' is a human label only; authz uses id.
                 break :blk .{ .user_id = id };
+            };
+            // Cleared only after the rule is appended (`.invalid` is not an error return).
+            var subject_owned = true;
+            defer if (subject_owned) switch (subject) {
+                .group => |name| self.allocator.free(name),
+                .any, .user_id => {},
             };
 
             if (site_col.len == 0 or path_col.len == 0 or method_col.len == 0) {
-                // Free subject if we allocated a group name before returning error.
-                switch (subject) {
-                    .group => |name| self.allocator.free(name),
-                    .any, .user_id => {},
-                }
                 return .{ .invalid = try std.fmt.allocPrint(
                     msg_allocator,
-                    "ACL line {d}: site_id, path_prefix, and method must be non-empty",
+                    "ACL line {d}: site_id, path, and method must be non-empty",
                     .{line_no},
                 ) };
             }
@@ -138,10 +148,6 @@ pub const Acl = struct {
             else if (std.mem.eql(u8, effect_col, "deny"))
                 .deny
             else {
-                switch (subject) {
-                    .group => |name| self.allocator.free(name),
-                    .any, .user_id => {},
-                }
                 return .{ .invalid = try std.fmt.allocPrint(
                     msg_allocator,
                     "ACL line {d}: effect must be 'allow' or 'deny', got {s}",
@@ -149,13 +155,33 @@ pub const Acl = struct {
                 ) };
             };
 
+            var path_re = regex.compile(self.allocator, path_col) catch {
+                return .{ .invalid = try std.fmt.allocPrint(
+                    msg_allocator,
+                    "ACL line {d}: invalid path regex: {s}",
+                    .{ line_no, path_col },
+                ) };
+            };
+            var path_re_owned = true;
+            defer if (path_re_owned) path_re.deinit();
+
+            const site_id = try self.allocator.dupe(u8, site_col);
+            errdefer self.allocator.free(site_id);
+            const path_pattern = try self.allocator.dupe(u8, path_col);
+            errdefer self.allocator.free(path_pattern);
+            const method = try self.allocator.dupe(u8, method_col);
+            errdefer self.allocator.free(method);
+
             try rules.append(self.allocator, .{
                 .subject = subject,
-                .site_id = try self.allocator.dupe(u8, site_col),
-                .path_prefix = try self.allocator.dupe(u8, path_col),
-                .method = try self.allocator.dupe(u8, method_col),
+                .site_id = site_id,
+                .path_pattern = path_pattern,
+                .path_re = path_re,
+                .method = method,
                 .effect = effect,
             });
+            subject_owned = false;
+            path_re_owned = false;
         }
 
         const owned_source = try self.allocator.dupe(u8, tsv);
@@ -185,7 +211,7 @@ pub const Acl = struct {
         errdefer out.deinit(allocator);
         try out.appendSlice(allocator,
             \\<table>
-            \\<tr><th>user</th><th>site_id</th><th>path_prefix</th><th>method</th><th>effect</th></tr>
+            \\<tr><th>user</th><th>site_id</th><th>path</th><th>method</th><th>effect</th></tr>
         );
         for (self.rules) |rule| {
             const user = switch (rule.subject) {
@@ -194,7 +220,7 @@ pub const Acl = struct {
                 .group => |name| try std.fmt.allocPrint(allocator, "@{s}", .{name}),
             };
             const site = try htmlEscape(allocator, rule.site_id);
-            const path = try htmlEscape(allocator, rule.path_prefix);
+            const path = try htmlEscape(allocator, rule.path_pattern);
             const method = try htmlEscape(allocator, rule.method);
             const effect = @tagName(rule.effect);
             const row = try std.fmt.allocPrint(allocator,
@@ -223,6 +249,7 @@ pub const Acl = struct {
 
     /// First match wins. No match => deny.
     /// `groups` is the caller's group name memberships for `user_id`.
+    /// User subjects match by numeric id only (username in the TSV is a label).
     pub fn decide(
         self: *Acl,
         io: std.Io,
@@ -235,7 +262,7 @@ pub const Acl = struct {
         self.mutex.lockUncancelable(io);
         defer self.mutex.unlock(io);
 
-        for (self.rules) |rule| {
+        for (self.rules) |*rule| {
             switch (rule.subject) {
                 .any => {},
                 .user_id => |rid| if (rid != user_id) continue,
@@ -251,7 +278,8 @@ pub const Acl = struct {
                 },
             }
             if (!std.mem.eql(u8, rule.site_id, "*") and !std.mem.eql(u8, rule.site_id, site_id)) continue;
-            if (!std.mem.startsWith(u8, path, rule.path_prefix)) continue;
+            const path_ok = rule.path_re.matchScratch(&self.scratch, path) catch false;
+            if (!path_ok) continue;
             if (!std.mem.eql(u8, rule.method, "*") and !std.ascii.eqlIgnoreCase(rule.method, method)) continue;
             return rule.effect;
         }
@@ -269,10 +297,10 @@ test "acl first match and default deny" {
     const io = std.testing.io;
     const result = try acl.loadTsv(
         io,
-        "user\tsite_id\tpath_prefix\tmethod\teffect\n" ++
-            "12:alice\talpha\t/api/\tGET\tallow\n" ++
-            "*\talpha\t/admin\t*\tdeny\n" ++
-            "*\talpha\t/\t*\tallow\n",
+        "user\tsite_id\tpath\tmethod\teffect\n" ++
+            "12:alice\talpha\t^/api/\tGET\tallow\n" ++
+            "*\talpha\t^/admin\t*\tdeny\n" ++
+            "*\talpha\t^/\t*\tallow\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);
@@ -283,13 +311,43 @@ test "acl first match and default deny" {
     try std.testing.expect(acl.decide(io, 12, none, "other", "/", "GET") == .deny);
 }
 
+test "acl path regex can deny pdfs" {
+    var acl = Acl.init(std.testing.allocator);
+    defer acl.deinit();
+    const io = std.testing.io;
+    const result = try acl.loadTsv(
+        io,
+        "*\tfiles\t(?i)\\.pdf$\t*\tdeny\n" ++
+            "*\tfiles\t^/\t*\tallow\n",
+        std.testing.allocator,
+    );
+    try std.testing.expect(result == .ok);
+    try std.testing.expect(acl.decide(io, 1, &.{}, "files", "/docs/report.PDF", "GET") == .deny);
+    try std.testing.expect(acl.decide(io, 1, &.{}, "files", "/docs/readme.txt", "GET") == .allow);
+}
+
+test "acl user subject matches id not username label" {
+    var acl = Acl.init(std.testing.allocator);
+    defer acl.deinit();
+    const io = std.testing.io;
+    // Label says "alice" but authz only cares about id 12.
+    const result = try acl.loadTsv(
+        io,
+        "12:alice\tsite\t^/\t*\tallow\n",
+        std.testing.allocator,
+    );
+    try std.testing.expect(result == .ok);
+    try std.testing.expect(acl.decide(io, 12, &.{}, "site", "/", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 99, &.{}, "site", "/", "GET") == .deny);
+}
+
 test "acl group subject matches membership" {
     var acl = Acl.init(std.testing.allocator);
     defer acl.deinit();
     const io = std.testing.io;
     const result = try acl.loadTsv(
         io,
-        "@friends\tjellyfin\t/\t*\tallow\n",
+        "@friends\tjellyfin\t^/\t*\tallow\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);
@@ -305,11 +363,24 @@ test "acl bad group subject" {
     defer acl.deinit();
     const result = try acl.loadTsv(
         std.testing.io,
-        "@\tjellyfin\t/\t*\tallow\n",
+        "@\tjellyfin\t^/\t*\tallow\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .invalid);
     defer std.testing.allocator.free(result.invalid);
+}
+
+test "acl invalid path regex" {
+    var acl = Acl.init(std.testing.allocator);
+    defer acl.deinit();
+    const result = try acl.loadTsv(
+        std.testing.io,
+        "*\tsite\t[\t*\tallow\n",
+        std.testing.allocator,
+    );
+    try std.testing.expect(result == .invalid);
+    defer std.testing.allocator.free(result.invalid);
+    try std.testing.expect(std.mem.indexOf(u8, result.invalid, "regex") != null);
 }
 
 test "acl ignores extra columns and pads missing trailing columns" {
@@ -318,8 +389,8 @@ test "acl ignores extra columns and pads missing trailing columns" {
     const io = std.testing.io;
     const result = try acl.loadTsv(
         io,
-        "user\tsite_id\tpath_prefix\tmethod\teffect\textra\n" ++
-            "*\talpha\t/\t*\tallow\tignored\tmore\n",
+        "user\tsite_id\tpath\tmethod\teffect\textra\n" ++
+            "*\talpha\t^/\t*\tallow\tignored\tmore\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);
@@ -341,7 +412,7 @@ test "acl nice error on bad effect" {
     defer acl.deinit();
     const result = try acl.loadTsv(
         std.testing.io,
-        "*\tsite\t/\t*\tyes\n",
+        "*\tsite\t^/\t*\tyes\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .invalid);
@@ -349,13 +420,13 @@ test "acl nice error on bad effect" {
     try std.testing.expect(std.mem.indexOf(u8, result.invalid, "line 1") != null);
 }
 
-test "acl header accepts legacy host column name" {
+test "acl header accepts legacy host and path_prefix column names" {
     var acl = Acl.init(std.testing.allocator);
     defer acl.deinit();
     const result = try acl.loadTsv(
         std.testing.io,
         "user\thost\tpath_prefix\tmethod\teffect\n" ++
-            "*\talpha\t/\t*\tallow\n",
+            "*\talpha\t^/\t*\tallow\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);

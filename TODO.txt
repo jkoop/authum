@@ -1,1 +1,0 @@
-- Make ACL path use regex, so I can forbid PDFs for example.

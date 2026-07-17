@@ -59,19 +59,22 @@ First matching row wins; no match means deny.
 
 | Column | Meaning |
 |--------|---------|
-| `user` | `*` (anyone), `id:username` (match on numeric id), or `@group` |
+| `user` | `*` (anyone), `id:username` (match on numeric id; username is a label), or `@group` |
 | `site_id` | Sites id or `*` |
-| `path_prefix` | Path must start with this |
+| `path` | RE2-style regex against the request path |
 | `method` | HTTP method or `*` |
 | `effect` | `allow` or `deny` |
 
 Example:
 
 ```tsv
-user	site_id	path_prefix	method	effect
-@friends	jellyfin	/	*	allow
-1:admin	*	/	*	allow
+user	site_id	path	method	effect
+*	files	(?i)\.pdf$	*	deny
+@friends	jellyfin	^/	*	allow
+1:admin	*	^/	*	allow
 ```
+
+Use `^/…` when you want prefix-style matching. Renaming a user does not break `id:username` rows (id is what matches).
 
 Create groups and memberships in the admin UI, then reference them as `@friends` instead of duplicating a row per person.
 

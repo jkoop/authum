@@ -16,6 +16,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const regex = b.dependency("zoptia0regex", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
         .name = "authum",
@@ -28,6 +32,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "httpz", .module = httpz.module("httpz") },
                 .{ .name = "zqlite", .module = zqlite.module("zqlite") },
                 .{ .name = "ztl", .module = ztl.module("ztl") },
+                .{ .name = "regex", .module = regex.module("regex") },
             },
         }),
     });

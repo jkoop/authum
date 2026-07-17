@@ -44,6 +44,10 @@
             .url = "git+https://github.com/karlseguin/ztl?ref=master#ab5782eeadf6e2d50c152a17588c2ba8bb02436f",
             .hash = "ztl-0.0.0-XMYgXFcdBQAlVCTnNxQwUmKOf7Uqkw-B1xSkns62dhqo",
         },
+        .zoptia0regex = .{
+            .url = "git+https://github.com/zoptia/zoptia0regex#83944c32653dbd8b6f1161b6631ed062d0feb705",
+            .hash = "zoptia0regex-0.4.0-DssccdU4PwDfwLMvOZKytj_0TDy-EzmFdqOtVq-LyJy8",
+        },
     },
     .paths = .{
         "build.zig",
