@@ -254,6 +254,72 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         \\</table>
     );
 
+    const groups = try db.listGroups(conn, res.arena);
+    var groups_html: std.ArrayList(u8) = .empty;
+    defer groups_html.deinit(res.arena);
+    try groups_html.appendSlice(res.arena,
+        \\<table border="1" cellpadding="4">
+        \\<tr><th>ID</th><th>Name</th><th>Members</th><th>Delete</th></tr>
+    );
+    for (groups) |g| {
+        const name_esc = try util.htmlEscape(res.arena, g.name);
+        const members = try db.listGroupMembers(conn, res.arena, g.id);
+        var members_buf: std.ArrayList(u8) = .empty;
+        defer members_buf.deinit(res.arena);
+        for (members) |m| {
+            const mname = try util.htmlEscape(res.arena, m.username);
+            const chip = try std.fmt.allocPrint(res.arena,
+                \\{s} ({d})
+                \\<form method="POST" action="/admin/groups/members/delete" style="display:inline">
+                \\<input type="hidden" name="group_id" value="{d}">
+                \\<input type="hidden" name="user_id" value="{d}">
+                \\<button type="submit">×</button>
+                \\</form>
+            , .{ mname, m.user_id, g.id, m.user_id });
+            if (members_buf.items.len > 0) try members_buf.appendSlice(res.arena, "<br>");
+            try members_buf.appendSlice(res.arena, chip);
+        }
+        const add_form = try std.fmt.allocPrint(res.arena,
+            \\<form method="POST" action="/admin/groups/members" style="margin-top:0.5em">
+            \\<input type="hidden" name="group_id" value="{d}">
+            \\<input name="username" placeholder="username" required>
+            \\<button type="submit">Add</button>
+            \\</form>
+        , .{g.id});
+        const row = try std.fmt.allocPrint(res.arena,
+            \\<tr>
+            \\<td>{d}</td>
+            \\<td>
+            \\<form method="POST" action="/admin/groups/update" style="display:inline">
+            \\<input type="hidden" name="id" value="{d}">
+            \\<input name="name" value="{s}" required>
+            \\<button type="submit">Save</button>
+            \\</form>
+            \\</td>
+            \\<td>{s}{s}</td>
+            \\<td>
+            \\<form method="POST" action="/admin/groups/delete" style="display:inline" onsubmit="return confirm('Delete group?');">
+            \\<input type="hidden" name="id" value="{d}">
+            \\<button type="submit">Delete</button>
+            \\</form>
+            \\</td>
+            \\</tr>
+        , .{ g.id, g.id, name_esc, members_buf.items, add_form, g.id });
+        try groups_html.appendSlice(res.arena, row);
+    }
+    try groups_html.appendSlice(res.arena,
+        \\<tr>
+        \\<td>+</td>
+        \\<td colspan="3">
+        \\<form method="POST" action="/admin/groups" style="display:inline">
+        \\<input name="name" placeholder="group name" required>
+        \\<button type="submit">Add group</button>
+        \\</form>
+        \\</td>
+        \\</tr>
+        \\</table>
+    );
+
     const acl_table = try app.acl.htmlTable(app.io, res.arena);
     const sites_table = try app.sites.htmlTable(app.io, res.arena);
 
@@ -281,8 +347,11 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         \\
         \\<h2>Users</h2>
         \\{s}
+        \\
+        \\<h2>Groups</h2>
+        \\{s}
         \\</body></html>
-    , .{ acl_table, sites_table, rows.items });
+    , .{ acl_table, sites_table, rows.items, groups_html.items });
 }
 
 pub fn aclDownload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -474,6 +543,140 @@ pub fn usersDelete(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     try db.deleteUser(conn, id);
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn groupsCreate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const name = form.get("name") orelse "";
+    if (name.len == 0 or !util.validUsername(name)) {
+        res.status = 400;
+        res.body = "group name may only contain letters, numbers, and underscores";
+        return;
+    }
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    _ = db.createGroup(conn, name) catch |err| {
+        if (err == error.ConstraintUnique) {
+            res.status = 400;
+            res.body = "group already exists";
+            return;
+        }
+        return err;
+    };
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn groupsUpdate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const id_str = form.get("id") orelse "";
+    const name = form.get("name") orelse "";
+    const id = std.fmt.parseInt(i64, id_str, 10) catch {
+        res.status = 400;
+        res.body = "invalid id";
+        return;
+    };
+    if (name.len == 0 or !util.validUsername(name)) {
+        res.status = 400;
+        res.body = "group name may only contain letters, numbers, and underscores";
+        return;
+    }
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    if ((try db.findGroupById(conn, res.arena, id)) == null) {
+        res.status = 404;
+        res.body = "group not found";
+        return;
+    }
+    db.updateGroupName(conn, id, name) catch |err| {
+        if (err == error.ConstraintUnique) {
+            res.status = 400;
+            res.body = "group already exists";
+            return;
+        }
+        return err;
+    };
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn groupsDelete(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const id_str = form.get("id") orelse "";
+    const id = std.fmt.parseInt(i64, id_str, 10) catch {
+        res.status = 400;
+        res.body = "invalid id";
+        return;
+    };
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    try db.deleteGroup(conn, id);
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn groupsMembersAdd(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const group_id_str = form.get("group_id") orelse "";
+    const username = form.get("username") orelse "";
+    const group_id = std.fmt.parseInt(i64, group_id_str, 10) catch {
+        res.status = 400;
+        res.body = "invalid group id";
+        return;
+    };
+    if (username.len == 0) {
+        res.status = 400;
+        res.body = "username required";
+        return;
+    }
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    if ((try db.findGroupById(conn, res.arena, group_id)) == null) {
+        res.status = 404;
+        res.body = "group not found";
+        return;
+    }
+    const user = (try db.findUserByUsername(conn, res.arena, username)) orelse {
+        res.status = 404;
+        res.body = "user not found";
+        return;
+    };
+    db.addGroupMember(conn, group_id, user.id) catch |err| {
+        if (err == error.ConstraintPrimaryKey or err == error.ConstraintUnique) {
+            res.status = 302;
+            res.header("Location", "/admin");
+            return;
+        }
+        return err;
+    };
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn groupsMembersDelete(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const group_id_str = form.get("group_id") orelse "";
+    const user_id_str = form.get("user_id") orelse "";
+    const group_id = std.fmt.parseInt(i64, group_id_str, 10) catch {
+        res.status = 400;
+        res.body = "invalid group id";
+        return;
+    };
+    const user_id = std.fmt.parseInt(i64, user_id_str, 10) catch {
+        res.status = 400;
+        res.body = "invalid user id";
+        return;
+    };
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    try db.removeGroupMember(conn, group_id, user_id);
     res.status = 302;
     res.header("Location", "/admin");
 }

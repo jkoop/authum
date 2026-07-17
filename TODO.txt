@@ -1,4 +1,3 @@
-- User groups; I don't like duplicating ACL rows for each person.
 - LDAP so Jellyfin can use this.
 - Log in with Discord, so inviting friends is easier.
 - More/better inline documentation for admins and plebs.

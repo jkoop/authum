@@ -2,8 +2,14 @@ const std = @import("std");
 
 pub const Effect = enum { allow, deny };
 
+pub const Subject = union(enum) {
+    any,
+    user_id: i64,
+    group: []const u8,
+};
+
 pub const Rule = struct {
-    user_id: ?i64, // null means wildcard *
+    subject: Subject,
     site_id: []const u8, // "*" or exact site_id
     path_prefix: []const u8,
     method: []const u8, // "*" or method
@@ -29,12 +35,18 @@ pub const Acl = struct {
         self.freeOwned();
     }
 
-    fn freeOwned(self: *Acl) void {
-        for (self.rules) |rule| {
-            self.allocator.free(rule.site_id);
-            self.allocator.free(rule.path_prefix);
-            self.allocator.free(rule.method);
+    fn freeRule(allocator: std.mem.Allocator, rule: Rule) void {
+        switch (rule.subject) {
+            .group => |name| allocator.free(name),
+            .any, .user_id => {},
         }
+        allocator.free(rule.site_id);
+        allocator.free(rule.path_prefix);
+        allocator.free(rule.method);
+    }
+
+    fn freeOwned(self: *Acl) void {
+        for (self.rules) |rule| freeRule(self.allocator, rule);
         self.allocator.free(self.rules);
         self.allocator.free(self.source);
         self.rules = &.{};
@@ -46,11 +58,7 @@ pub const Acl = struct {
     pub fn loadTsv(self: *Acl, io: std.Io, tsv: []const u8, msg_allocator: std.mem.Allocator) !LoadResult {
         var rules: std.ArrayList(Rule) = .empty;
         errdefer {
-            for (rules.items) |rule| {
-                self.allocator.free(rule.site_id);
-                self.allocator.free(rule.path_prefix);
-                self.allocator.free(rule.method);
-            }
+            for (rules.items) |rule| freeRule(self.allocator, rule);
             rules.deinit(self.allocator);
         }
 
@@ -82,26 +90,42 @@ pub const Acl = struct {
                 std.mem.eql(u8, site_col, "site_id") or
                 std.mem.eql(u8, site_col, "host"))) continue;
 
-            const user_id: ?i64 = if (std.mem.eql(u8, user_col, "*"))
-                null
-            else blk: {
+            const subject: Subject = if (std.mem.eql(u8, user_col, "*"))
+                .any
+            else if (user_col.len > 1 and user_col[0] == '@') blk: {
+                const gname = user_col[1..];
+                if (gname.len == 0 or !validGroupName(gname)) {
+                    return .{ .invalid = try std.fmt.allocPrint(
+                        msg_allocator,
+                        "ACL line {d}: group must be '@name' with [A-Za-z0-9_], got {s}",
+                        .{ line_no, user_col },
+                    ) };
+                }
+                break :blk .{ .group = try self.allocator.dupe(u8, gname) };
+            } else blk: {
                 const colon = std.mem.indexOfScalar(u8, user_col, ':') orelse {
                     return .{ .invalid = try std.fmt.allocPrint(
                         msg_allocator,
-                        "ACL line {d}: user must be '*' or 'id:username', got {s}",
+                        "ACL line {d}: user must be '*', 'id:username', or '@group', got {s}",
                         .{ line_no, user_col },
                     ) };
                 };
-                break :blk std.fmt.parseInt(i64, user_col[0..colon], 10) catch {
+                const id = std.fmt.parseInt(i64, user_col[0..colon], 10) catch {
                     return .{ .invalid = try std.fmt.allocPrint(
                         msg_allocator,
                         "ACL line {d}: invalid user id in {s}",
                         .{ line_no, user_col },
                     ) };
                 };
+                break :blk .{ .user_id = id };
             };
 
             if (site_col.len == 0 or path_col.len == 0 or method_col.len == 0) {
+                // Free subject if we allocated a group name before returning error.
+                switch (subject) {
+                    .group => |name| self.allocator.free(name),
+                    .any, .user_id => {},
+                }
                 return .{ .invalid = try std.fmt.allocPrint(
                     msg_allocator,
                     "ACL line {d}: site_id, path_prefix, and method must be non-empty",
@@ -113,15 +137,20 @@ pub const Acl = struct {
                 .allow
             else if (std.mem.eql(u8, effect_col, "deny"))
                 .deny
-            else
+            else {
+                switch (subject) {
+                    .group => |name| self.allocator.free(name),
+                    .any, .user_id => {},
+                }
                 return .{ .invalid = try std.fmt.allocPrint(
                     msg_allocator,
                     "ACL line {d}: effect must be 'allow' or 'deny', got {s}",
                     .{ line_no, effect_col },
                 ) };
+            };
 
             try rules.append(self.allocator, .{
-                .user_id = user_id,
+                .subject = subject,
                 .site_id = try self.allocator.dupe(u8, site_col),
                 .path_prefix = try self.allocator.dupe(u8, path_col),
                 .method = try self.allocator.dupe(u8, method_col),
@@ -159,10 +188,11 @@ pub const Acl = struct {
             \\<tr><th>user</th><th>site_id</th><th>path_prefix</th><th>method</th><th>effect</th></tr>
         );
         for (self.rules) |rule| {
-            const user = if (rule.user_id) |id|
-                try std.fmt.allocPrint(allocator, "{d}", .{id})
-            else
-                "*";
+            const user = switch (rule.subject) {
+                .any => "*",
+                .user_id => |id| try std.fmt.allocPrint(allocator, "{d}", .{id}),
+                .group => |name| try std.fmt.allocPrint(allocator, "@{s}", .{name}),
+            };
             const site = try htmlEscape(allocator, rule.site_id);
             const path = try htmlEscape(allocator, rule.path_prefix);
             const method = try htmlEscape(allocator, rule.method);
@@ -192,13 +222,33 @@ pub const Acl = struct {
     }
 
     /// First match wins. No match => deny.
-    pub fn decide(self: *Acl, io: std.Io, user_id: i64, site_id: []const u8, path: []const u8, method: []const u8) Effect {
+    /// `groups` is the caller's group name memberships for `user_id`.
+    pub fn decide(
+        self: *Acl,
+        io: std.Io,
+        user_id: i64,
+        groups: []const []const u8,
+        site_id: []const u8,
+        path: []const u8,
+        method: []const u8,
+    ) Effect {
         self.mutex.lockUncancelable(io);
         defer self.mutex.unlock(io);
 
         for (self.rules) |rule| {
-            if (rule.user_id) |rid| {
-                if (rid != user_id) continue;
+            switch (rule.subject) {
+                .any => {},
+                .user_id => |rid| if (rid != user_id) continue,
+                .group => |gname| {
+                    var member = false;
+                    for (groups) |g| {
+                        if (std.mem.eql(u8, g, gname)) {
+                            member = true;
+                            break;
+                        }
+                    }
+                    if (!member) continue;
+                },
             }
             if (!std.mem.eql(u8, rule.site_id, "*") and !std.mem.eql(u8, rule.site_id, site_id)) continue;
             if (!std.mem.startsWith(u8, path, rule.path_prefix)) continue;
@@ -208,6 +258,18 @@ pub const Acl = struct {
         return .deny;
     }
 };
+
+fn validGroupName(name: []const u8) bool {
+    if (name.len == 0) return false;
+    for (name) |c| {
+        const ok = (c >= 'A' and c <= 'Z') or
+            (c >= 'a' and c <= 'z') or
+            (c >= '0' and c <= '9') or
+            c == '_';
+        if (!ok) return false;
+    }
+    return true;
+}
 
 test "acl first match and default deny" {
     var acl = Acl.init(std.testing.allocator);
@@ -222,17 +284,46 @@ test "acl first match and default deny" {
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);
-    try std.testing.expect(acl.decide(io, 12, "alpha", "/api/x", "GET") == .allow);
-    try std.testing.expect(acl.decide(io, 12, "alpha", "/admin", "POST") == .deny);
-    try std.testing.expect(acl.decide(io, 99, "alpha", "/other", "GET") == .allow);
-    try std.testing.expect(acl.decide(io, 12, "other", "/", "GET") == .deny);
+    const none: []const []const u8 = &.{};
+    try std.testing.expect(acl.decide(io, 12, none, "alpha", "/api/x", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 12, none, "alpha", "/admin", "POST") == .deny);
+    try std.testing.expect(acl.decide(io, 99, none, "alpha", "/other", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 12, none, "other", "/", "GET") == .deny);
+}
+
+test "acl group subject matches membership" {
+    var acl = Acl.init(std.testing.allocator);
+    defer acl.deinit();
+    const io = std.testing.io;
+    const result = try acl.loadTsv(
+        io,
+        "@friends\tjellyfin\t/\t*\tallow\n",
+        std.testing.allocator,
+    );
+    try std.testing.expect(result == .ok);
+    const member: []const []const u8 = &.{"friends"};
+    const outsider: []const []const u8 = &.{"other"};
+    try std.testing.expect(acl.decide(io, 1, member, "jellyfin", "/", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 1, outsider, "jellyfin", "/", "GET") == .deny);
+    try std.testing.expect(acl.decide(io, 1, &.{}, "jellyfin", "/", "GET") == .deny);
+}
+
+test "acl bad group subject" {
+    var acl = Acl.init(std.testing.allocator);
+    defer acl.deinit();
+    const result = try acl.loadTsv(
+        std.testing.io,
+        "@\tjellyfin\t/\t*\tallow\n",
+        std.testing.allocator,
+    );
+    try std.testing.expect(result == .invalid);
+    defer std.testing.allocator.free(result.invalid);
 }
 
 test "acl ignores extra columns and pads missing trailing columns" {
     var acl = Acl.init(std.testing.allocator);
     defer acl.deinit();
     const io = std.testing.io;
-    // Full row with extras ignored.
     const result = try acl.loadTsv(
         io,
         "user\tsite_id\tpath_prefix\tmethod\teffect\textra\n" ++
@@ -240,9 +331,8 @@ test "acl ignores extra columns and pads missing trailing columns" {
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);
-    try std.testing.expect(acl.decide(io, 1, "alpha", "/", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 1, &.{}, "alpha", "/", "GET") == .allow);
 
-    // Missing trailing columns → blanks → nice error (not silent skip).
     var acl2 = Acl.init(std.testing.allocator);
     defer acl2.deinit();
     const short = try acl2.loadTsv(
@@ -277,5 +367,5 @@ test "acl header accepts legacy host column name" {
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);
-    try std.testing.expect(acl.decide(std.testing.io, 1, "alpha", "/", "GET") == .allow);
+    try std.testing.expect(acl.decide(std.testing.io, 1, &.{}, "alpha", "/", "GET") == .allow);
 }

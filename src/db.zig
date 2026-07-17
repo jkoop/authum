@@ -8,6 +8,16 @@ pub const User = struct {
     username: []const u8,
 };
 
+pub const Group = struct {
+    id: i64,
+    name: []const u8,
+};
+
+pub const GroupMember = struct {
+    user_id: i64,
+    username: []const u8,
+};
+
 pub const SessionUser = struct {
     session_id: []const u8,
     user_id: i64,
@@ -32,6 +42,15 @@ const schema =
     \\  site_id text not null,
     \\  path text not null,
     \\  expires_at integer not null
+    \\);
+    \\create table if not exists groups (
+    \\  id integer primary key,
+    \\  name text not null unique
+    \\);
+    \\create table if not exists group_members (
+    \\  group_id integer not null references groups(id) on delete cascade,
+    \\  user_id integer not null references users(id) on delete cascade,
+    \\  primary key (group_id, user_id)
     \\);
     \\create table if not exists acl_document (
     \\  id integer primary key check (id = 1),
@@ -191,7 +210,127 @@ pub fn updatePassword(
 
 pub fn deleteUser(conn: zqlite.Conn, id: i64) !void {
     try conn.exec("delete from sessions where user_id = ?1", .{id});
+    try conn.exec("delete from group_members where user_id = ?1", .{id});
     try conn.exec("delete from users where id = ?1", .{id});
+}
+
+pub fn createGroup(conn: zqlite.Conn, name: []const u8) !i64 {
+    try conn.exec("insert into groups (name) values (?1)", .{name});
+    return conn.lastInsertedRowId();
+}
+
+pub fn listGroups(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]Group {
+    var list: std.ArrayList(Group) = .empty;
+    errdefer {
+        for (list.items) |g| allocator.free(g.name);
+        list.deinit(allocator);
+    }
+
+    var rows = try conn.rows("select id, name from groups order by name", .{});
+    defer rows.deinit();
+    while (rows.next()) |row| {
+        try list.append(allocator, .{
+            .id = row.int(0),
+            .name = try allocator.dupe(u8, row.text(1)),
+        });
+    }
+    if (rows.err) |err| return err;
+    return try list.toOwnedSlice(allocator);
+}
+
+pub fn findGroupById(
+    conn: zqlite.Conn,
+    allocator: std.mem.Allocator,
+    id: i64,
+) !?Group {
+    const row = (try conn.row("select id, name from groups where id = ?1", .{id})) orelse return null;
+    defer row.deinit();
+    return .{
+        .id = row.int(0),
+        .name = try allocator.dupe(u8, row.text(1)),
+    };
+}
+
+pub fn updateGroupName(conn: zqlite.Conn, id: i64, name: []const u8) !void {
+    try conn.exec("update groups set name = ?1 where id = ?2", .{ name, id });
+}
+
+pub fn deleteGroup(conn: zqlite.Conn, id: i64) !void {
+    try conn.exec("delete from groups where id = ?1", .{id});
+}
+
+pub fn addGroupMember(conn: zqlite.Conn, group_id: i64, user_id: i64) !void {
+    try conn.exec(
+        "insert into group_members (group_id, user_id) values (?1, ?2)",
+        .{ group_id, user_id },
+    );
+}
+
+pub fn removeGroupMember(conn: zqlite.Conn, group_id: i64, user_id: i64) !void {
+    try conn.exec(
+        "delete from group_members where group_id = ?1 and user_id = ?2",
+        .{ group_id, user_id },
+    );
+}
+
+pub fn listGroupMembers(
+    conn: zqlite.Conn,
+    allocator: std.mem.Allocator,
+    group_id: i64,
+) ![]GroupMember {
+    var list: std.ArrayList(GroupMember) = .empty;
+    errdefer {
+        for (list.items) |m| allocator.free(m.username);
+        list.deinit(allocator);
+    }
+
+    var rows = try conn.rows(
+        \\select users.id, users.username
+        \\from group_members
+        \\join users on users.id = group_members.user_id
+        \\where group_members.group_id = ?1
+        \\order by users.username
+    ,
+        .{group_id},
+    );
+    defer rows.deinit();
+    while (rows.next()) |row| {
+        try list.append(allocator, .{
+            .user_id = row.int(0),
+            .username = try allocator.dupe(u8, row.text(1)),
+        });
+    }
+    if (rows.err) |err| return err;
+    return try list.toOwnedSlice(allocator);
+}
+
+/// Group names the user belongs to (allocated from `allocator`).
+pub fn listGroupNamesForUser(
+    conn: zqlite.Conn,
+    allocator: std.mem.Allocator,
+    user_id: i64,
+) ![][]const u8 {
+    var list: std.ArrayList([]const u8) = .empty;
+    errdefer {
+        for (list.items) |n| allocator.free(n);
+        list.deinit(allocator);
+    }
+
+    var rows = try conn.rows(
+        \\select groups.name
+        \\from group_members
+        \\join groups on groups.id = group_members.group_id
+        \\where group_members.user_id = ?1
+        \\order by groups.name
+    ,
+        .{user_id},
+    );
+    defer rows.deinit();
+    while (rows.next()) |row| {
+        try list.append(allocator, try allocator.dupe(u8, row.text(0)));
+    }
+    if (rows.err) |err| return err;
+    return try list.toOwnedSlice(allocator);
 }
 
 pub fn findUserByUsername(

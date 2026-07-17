@@ -43,7 +43,12 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     };
 
-    const effect = app.acl.decide(app.io, user.user_id, site.site_id, path, method);
+    const groups = blk: {
+        const conn = try app.pool.acquire(app.io);
+        defer conn.release(app.io);
+        break :blk try db.listGroupNamesForUser(conn, arena, user.user_id);
+    };
+    const effect = app.acl.decide(app.io, user.user_id, groups, site.site_id, path, method);
     if (effect == .deny) {
         res.status = 403;
         res.body = "forbidden";

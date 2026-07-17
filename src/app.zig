@@ -90,5 +90,10 @@ pub fn registerRoutes(app: *App, router: anytype) void {
     router.post("/admin/users", web.usersCreate, .{});
     router.post("/admin/users/update", web.usersUpdate, .{});
     router.post("/admin/users/delete", web.usersDelete, .{});
+    router.post("/admin/groups", web.groupsCreate, .{});
+    router.post("/admin/groups/update", web.groupsUpdate, .{});
+    router.post("/admin/groups/delete", web.groupsDelete, .{});
+    router.post("/admin/groups/members", web.groupsMembersAdd, .{});
+    router.post("/admin/groups/members/delete", web.groupsMembersDelete, .{});
     router.post("/password", web.changePassword, .{});
 }
