@@ -3,4 +3,5 @@
 /zig-out
 /database.sqlite
 /*.sql
+*.db
 zig-pkg
