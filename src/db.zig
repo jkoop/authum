@@ -79,7 +79,7 @@ pub fn seedAdmin(
 }
 
 pub fn ensureDocuments(conn: zqlite.Conn) !void {
-    const default_acl = "user\thost\tpath_prefix\tmethod\teffect\n";
+    const default_acl = "user\tsite_id\tpath_prefix\tmethod\teffect\n";
     const default_sites = "site_id\thost\tuser_header\tuser_id_header\tuser_name_header\n";
 
     if (try conn.row("select 1 from acl_document where id = 1", .{})) |row| {

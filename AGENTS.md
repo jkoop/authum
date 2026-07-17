@@ -44,6 +44,7 @@ Dependencies: [http.zig](https://github.com/karlseguin/http.zig) (`httpz`), [zql
 - **Admin is a username, not a role.** Gate is `username == AUTHUM_ADMIN_USER`. Renaming/deleting that user is refused; changing the env var without updating the DB user will lock you out of `/admin`.
 - **`seedAdmin` resets the admin password** from `AUTHUM_ADMIN_PASSWORD` on every startup.
 - **ACL user column is `id:username` but authz matches on id only.** The username part is for humans; the admin ACL table shows the numeric id (or `*`). Renaming a user does not break ACL rows keyed by id.
+- **ACL site column is `site_id`, not host.** Hostnames live in the sites TSV; verify looks up the site by host, then matches ACL on that site’s `site_id` (`*` = any site).
 - **Sites TSV hosts have no scheme.** Redirects use `https` unless `X-Forwarded-Proto` is `http`.
 - **Per-site cookies, shared session.** Logout anywhere deletes the session row; leftover cookies on other hosts fail verify until cleared.
 - **Browser vs API:** User-Agent containing `Mozilla` → HTML login redirect on verify. Otherwise Basic auth. No CSRF anywhere (intentional).

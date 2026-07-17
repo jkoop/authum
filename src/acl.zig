@@ -4,7 +4,7 @@ pub const Effect = enum { allow, deny };
 
 pub const Rule = struct {
     user_id: ?i64, // null means wildcard *
-    host: []const u8, // "*" or exact host
+    site_id: []const u8, // "*" or exact site_id
     path_prefix: []const u8,
     method: []const u8, // "*" or method
     effect: Effect,
@@ -31,7 +31,7 @@ pub const Acl = struct {
 
     fn freeOwned(self: *Acl) void {
         for (self.rules) |rule| {
-            self.allocator.free(rule.host);
+            self.allocator.free(rule.site_id);
             self.allocator.free(rule.path_prefix);
             self.allocator.free(rule.method);
         }
@@ -47,7 +47,7 @@ pub const Acl = struct {
         var rules: std.ArrayList(Rule) = .empty;
         errdefer {
             for (rules.items) |rule| {
-                self.allocator.free(rule.host);
+                self.allocator.free(rule.site_id);
                 self.allocator.free(rule.path_prefix);
                 self.allocator.free(rule.method);
             }
@@ -72,12 +72,15 @@ pub const Acl = struct {
             // Extra columns ignored; missing trailing columns stay blank ("").
 
             const user_col = cols[0];
-            const host_col = cols[1];
+            const site_col = cols[1];
             const path_col = cols[2];
             const method_col = cols[3];
             const effect_col = cols[4];
 
-            if (std.mem.eql(u8, user_col, "user") and (host_col.len == 0 or std.mem.eql(u8, host_col, "host"))) continue;
+            // Header row: accept site_id or legacy host as the second column name.
+            if (std.mem.eql(u8, user_col, "user") and (site_col.len == 0 or
+                std.mem.eql(u8, site_col, "site_id") or
+                std.mem.eql(u8, site_col, "host"))) continue;
 
             const user_id: ?i64 = if (std.mem.eql(u8, user_col, "*"))
                 null
@@ -98,10 +101,10 @@ pub const Acl = struct {
                 };
             };
 
-            if (host_col.len == 0 or path_col.len == 0 or method_col.len == 0) {
+            if (site_col.len == 0 or path_col.len == 0 or method_col.len == 0) {
                 return .{ .invalid = try std.fmt.allocPrint(
                     msg_allocator,
-                    "ACL line {d}: host, path_prefix, and method must be non-empty",
+                    "ACL line {d}: site_id, path_prefix, and method must be non-empty",
                     .{line_no},
                 ) };
             }
@@ -119,7 +122,7 @@ pub const Acl = struct {
 
             try rules.append(self.allocator, .{
                 .user_id = user_id,
-                .host = try self.allocator.dupe(u8, host_col),
+                .site_id = try self.allocator.dupe(u8, site_col),
                 .path_prefix = try self.allocator.dupe(u8, path_col),
                 .method = try self.allocator.dupe(u8, method_col),
                 .effect = effect,
@@ -153,20 +156,20 @@ pub const Acl = struct {
         errdefer out.deinit(allocator);
         try out.appendSlice(allocator,
             \\<table border="1" cellpadding="4">
-            \\<tr><th>user</th><th>host</th><th>path_prefix</th><th>method</th><th>effect</th></tr>
+            \\<tr><th>user</th><th>site_id</th><th>path_prefix</th><th>method</th><th>effect</th></tr>
         );
         for (self.rules) |rule| {
             const user = if (rule.user_id) |id|
                 try std.fmt.allocPrint(allocator, "{d}", .{id})
             else
                 "*";
-            const host = try htmlEscape(allocator, rule.host);
+            const site = try htmlEscape(allocator, rule.site_id);
             const path = try htmlEscape(allocator, rule.path_prefix);
             const method = try htmlEscape(allocator, rule.method);
             const effect = @tagName(rule.effect);
             const row = try std.fmt.allocPrint(allocator,
                 \\<tr><td>{s}</td><td>{s}</td><td>{s}</td><td>{s}</td><td>{s}</td></tr>
-            , .{ user, host, path, method, effect });
+            , .{ user, site, path, method, effect });
             try out.appendSlice(allocator, row);
         }
         try out.appendSlice(allocator, "</table>");
@@ -189,7 +192,7 @@ pub const Acl = struct {
     }
 
     /// First match wins. No match => deny.
-    pub fn decide(self: *Acl, io: std.Io, user_id: i64, host: []const u8, path: []const u8, method: []const u8) Effect {
+    pub fn decide(self: *Acl, io: std.Io, user_id: i64, site_id: []const u8, path: []const u8, method: []const u8) Effect {
         self.mutex.lockUncancelable(io);
         defer self.mutex.unlock(io);
 
@@ -197,7 +200,7 @@ pub const Acl = struct {
             if (rule.user_id) |rid| {
                 if (rid != user_id) continue;
             }
-            if (!std.mem.eql(u8, rule.host, "*") and !std.mem.eql(u8, rule.host, host)) continue;
+            if (!std.mem.eql(u8, rule.site_id, "*") and !std.mem.eql(u8, rule.site_id, site_id)) continue;
             if (!std.mem.startsWith(u8, path, rule.path_prefix)) continue;
             if (!std.mem.eql(u8, rule.method, "*") and !std.ascii.eqlIgnoreCase(rule.method, method)) continue;
             return rule.effect;
@@ -212,17 +215,17 @@ test "acl first match and default deny" {
     const io = std.testing.io;
     const result = try acl.loadTsv(
         io,
-        "user\thost\tpath_prefix\tmethod\teffect\n" ++
-            "12:alice\talpha.foo.com\t/api/\tGET\tallow\n" ++
-            "*\talpha.foo.com\t/admin\t*\tdeny\n" ++
-            "*\talpha.foo.com\t/\t*\tallow\n",
+        "user\tsite_id\tpath_prefix\tmethod\teffect\n" ++
+            "12:alice\talpha\t/api/\tGET\tallow\n" ++
+            "*\talpha\t/admin\t*\tdeny\n" ++
+            "*\talpha\t/\t*\tallow\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);
-    try std.testing.expect(acl.decide(io, 12, "alpha.foo.com", "/api/x", "GET") == .allow);
-    try std.testing.expect(acl.decide(io, 12, "alpha.foo.com", "/admin", "POST") == .deny);
-    try std.testing.expect(acl.decide(io, 99, "alpha.foo.com", "/other", "GET") == .allow);
-    try std.testing.expect(acl.decide(io, 12, "other.foo.com", "/", "GET") == .deny);
+    try std.testing.expect(acl.decide(io, 12, "alpha", "/api/x", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 12, "alpha", "/admin", "POST") == .deny);
+    try std.testing.expect(acl.decide(io, 99, "alpha", "/other", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 12, "other", "/", "GET") == .deny);
 }
 
 test "acl ignores extra columns and pads missing trailing columns" {
@@ -232,19 +235,19 @@ test "acl ignores extra columns and pads missing trailing columns" {
     // Full row with extras ignored.
     const result = try acl.loadTsv(
         io,
-        "user\thost\tpath_prefix\tmethod\teffect\textra\n" ++
-            "*\talpha.foo.com\t/\t*\tallow\tignored\tmore\n",
+        "user\tsite_id\tpath_prefix\tmethod\teffect\textra\n" ++
+            "*\talpha\t/\t*\tallow\tignored\tmore\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .ok);
-    try std.testing.expect(acl.decide(io, 1, "alpha.foo.com", "/", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 1, "alpha", "/", "GET") == .allow);
 
     // Missing trailing columns → blanks → nice error (not silent skip).
     var acl2 = Acl.init(std.testing.allocator);
     defer acl2.deinit();
     const short = try acl2.loadTsv(
         std.testing.io,
-        "*\talpha.foo.com\t/\n",
+        "*\talpha\t/\n",
         std.testing.allocator,
     );
     try std.testing.expect(short == .invalid);
@@ -256,10 +259,23 @@ test "acl nice error on bad effect" {
     defer acl.deinit();
     const result = try acl.loadTsv(
         std.testing.io,
-        "*\thost\t/\t*\tyes\n",
+        "*\tsite\t/\t*\tyes\n",
         std.testing.allocator,
     );
     try std.testing.expect(result == .invalid);
     defer std.testing.allocator.free(result.invalid);
     try std.testing.expect(std.mem.indexOf(u8, result.invalid, "line 1") != null);
+}
+
+test "acl header accepts legacy host column name" {
+    var acl = Acl.init(std.testing.allocator);
+    defer acl.deinit();
+    const result = try acl.loadTsv(
+        std.testing.io,
+        "user\thost\tpath_prefix\tmethod\teffect\n" ++
+            "*\talpha\t/\t*\tallow\n",
+        std.testing.allocator,
+    );
+    try std.testing.expect(result == .ok);
+    try std.testing.expect(acl.decide(std.testing.io, 1, "alpha", "/", "GET") == .allow);
 }

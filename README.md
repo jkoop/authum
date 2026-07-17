@@ -36,4 +36,4 @@ labels:
 # Login UI (AUTHUM_DOMAIN) — no ForwardAuth; route to the authum service
 ```
 
-Register each app in the admin **Sites** TSV (`site_id`, `host`, identity header names) and allow paths in the **ACL** TSV. After login, users bounce through `https://{host}/_authum/login` so each site can set its own cookie (same session id everywhere).
+Register each app in the admin **Sites** TSV (`site_id`, `host`, identity header names) and allow paths in the **ACL** TSV (`user`, `site_id`, `path_prefix`, `method`, `effect`). After login, users bounce through `https://{host}/_authum/login` so each site can set its own cookie (same session id everywhere).

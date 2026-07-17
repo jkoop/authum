@@ -43,7 +43,7 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     };
 
-    const effect = app.acl.decide(app.io, user.user_id, host, path, method);
+    const effect = app.acl.decide(app.io, user.user_id, site.site_id, path, method);
     if (effect == .deny) {
         res.status = 403;
         res.body = "forbidden";
