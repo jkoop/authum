@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · authum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<% @include('styles') %>
+</head>
+<body>
+<div class="wrap">
+  <div class="topnav">
+    <div class="brand">authum</div>
+    <a href="/logout">Log out</a>
+  </div>
+  <h1>Admin</h1>
+  <div class="panel">
+    <p class="lede">Traefik calls <code>/auth/verify</code> on each protected request. Unknown hosts are denied. Allowed requests get the identity headers named in Sites. After form login, users hit <code>https://{host}/_authum/login</code> once so each site gets its own cookie (same session id).</p>
+
+    <h2>ACL</h2>
+    <p class="lede">Tab-separated; first matching row wins; no match means deny. Columns: <code>user</code>, <code>site_id</code>, <code>path_prefix</code>, <code>method</code>, <code>effect</code> (<code>allow</code>/<code>deny</code>).</p>
+    <ul class="help">
+      <li><code>user</code>: <code>*</code> (anyone), <code>id:username</code> (numeric id is what matches; username is a label), or <code>@group</code> (any member of that group).</li>
+      <li><code>site_id</code>: a Sites id or <code>*</code> — not the hostname.</li>
+      <li><code>path_prefix</code> / <code>method</code>: path must start with the prefix; method is exact or <code>*</code>.</li>
+    </ul>
+    <%= safe @acl_table %>
+    <p><a href="/admin/acl.tsv">Download ACL</a></p>
+    <form method="POST" action="/admin/acl" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".tsv,text/tab-separated-values,text/plain" required>
+      <button type="submit">Upload ACL</button>
+    </form>
+
+    <h2>Sites</h2>
+    <p class="lede">Columns: <code>site_id</code>, <code>host</code> (no scheme), <code>user_header</code>, <code>user_id_header</code>, <code>user_name_header</code>. Configure Traefik <code>authResponseHeaders</code> to forward those header names. <code>site_id</code> is what ACL rows refer to.</p>
+    <%= safe @sites_table %>
+    <p><a href="/admin/sites.tsv">Download Sites</a></p>
+    <form method="POST" action="/admin/sites" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".tsv,text/tab-separated-values,text/plain" required>
+      <button type="submit">Upload Sites</button>
+    </form>
+
+    <h2>Users</h2>
+    <p class="lede">Usernames are <code>[A-Za-z0-9_]</code> only. The env admin user cannot be renamed or deleted; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup.</p>
+    <%= safe @users_html %>
+
+    <h2>Groups</h2>
+    <p class="lede">Put people in a group, then use <code>@groupname</code> in the ACL instead of repeating per-user rows. Renaming a group does not rewrite ACL text—update the TSV if you change the name. Deleting a group (or removing all members) makes <code>@name</code> rules stop matching.</p>
+    <%= safe @groups_html %>
+  </div>
+</div>
+</body>
+</html>

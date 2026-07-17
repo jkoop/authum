@@ -4,6 +4,7 @@ const config_mod = @import("config.zig");
 const app_mod = @import("app.zig");
 const acl_mod = @import("acl.zig");
 const sites_mod = @import("sites.zig");
+const templates_mod = @import("templates.zig");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
@@ -19,8 +20,10 @@ pub fn main(init: std.process.Init) !void {
         .pool = undefined,
         .acl = acl_mod.Acl.init(allocator),
         .sites = sites_mod.Sites.init(allocator),
+        .templates = undefined,
     };
     app.pool = try app_mod.openPool(allocator, cfg.db_path);
+    app.templates = try templates_mod.Templates.init(allocator);
     defer app.deinit();
 
     try app_mod.bootstrap(&app);
@@ -69,4 +72,5 @@ test {
     _ = @import("util.zig");
     _ = @import("acl.zig");
     _ = @import("sites.zig");
+    _ = @import("templates.zig");
 }

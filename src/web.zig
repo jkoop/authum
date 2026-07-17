@@ -15,33 +15,15 @@ pub fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         const q = try req.query();
         const msg = q.get("msg") orelse "";
         const err = q.get("error") orelse "";
-        const msg_html = if (msg.len > 0)
-            try std.fmt.allocPrint(res.arena, "<p style=\"color:green\">{s}</p>", .{try util.htmlEscape(res.arena, msg)})
-        else
-            "";
-        const err_html = if (err.len > 0)
-            try std.fmt.allocPrint(res.arena, "<p style=\"color:red\">{s}</p>", .{try util.htmlEscape(res.arena, err)})
-        else
-            "";
-
         res.content_type = .HTML;
-        res.body = try std.fmt.allocPrint(res.arena,
-            \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
-            \\<h1>Account</h1>
-            \\<p>Logged in as <strong>{s}</strong> (id {d}).</p>
-            \\<p>This login is shared across the sites your admin has allowed. To sign out of a specific app, use that site’s logout (or visit <code>/_authum/logout</code> on that host). Logging out here ends the session everywhere.</p>
-            \\{s}{s}
-            \\<h2>Change password</h2>
-            \\<p>Use a password manager–friendly unique password. Changing it here updates the single account used for all sites.</p>
-            \\<form method="POST" action="/password">
-            \\<p>Current password: <input name="current_password" type="password" required autocomplete="current-password"></p>
-            \\<p>New password: <input name="new_password" type="password" required autocomplete="new-password"></p>
-            \\<p>Confirm new password: <input name="confirm_password" type="password" required autocomplete="new-password"></p>
-            \\<p><button type="submit">Change password</button></p>
-            \\</form>
-            \\<p><a href="/logout">Log out</a></p>
-            \\</body></html>
-        , .{ user.username, user.user_id, msg_html, err_html });
+        res.body = try app.templates.renderAccount(res.arena, .{
+            .username = user.username,
+            .user_id = user.user_id,
+            .msg = msg,
+            .err_msg = err,
+            .has_msg = msg.len > 0,
+            .has_error = err.len > 0,
+        });
         return;
     }
     res.status = 302;
@@ -86,42 +68,19 @@ fn redirectWith(res: *httpz.Response, prefix: []const u8, message: []const u8) !
 }
 
 pub fn loginGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    _ = app;
     const q = try req.query();
     const from_site = q.get("from_site") orelse "";
     const from_path = q.get("from_path") orelse "/";
     const err = q.get("error") orelse "";
-    const site_esc = try util.htmlEscape(res.arena, from_site);
-    const path_esc = try util.htmlEscape(res.arena, from_path);
-    const err_html = if (err.len > 0)
-        try std.fmt.allocPrint(res.arena, "<p style=\"color:red\">{s}</p>", .{try util.htmlEscape(res.arena, err)})
-    else
-        "";
-
-    const context_html = if (from_site.len > 0)
-        try std.fmt.allocPrint(res.arena,
-            \\<p>Sign in to continue to <strong>{s}</strong>. After login you will return to that site with a session cookie for that host.</p>
-        , .{site_esc})
-    else
-        \\<p>Sign in to manage your account password, or open a protected site and you will be sent here automatically.</p>
-    ;
 
     res.content_type = .HTML;
-    res.body = try std.fmt.allocPrint(res.arena,
-        \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Login</title></head><body>
-        \\<h1>Login</h1>
-        \\<p>This is the authum login domain. Your password is entered only here—not on each app—so password managers stay happy.</p>
-        \\{s}
-        \\{s}
-        \\<form method="POST" action="/login" autocomplete="on">
-        \\<input type="hidden" name="from_site" value="{s}">
-        \\<input type="hidden" name="from_path" value="{s}">
-        \\<p>Username: <input name="username" autocomplete="username" required></p>
-        \\<p>Password: <input name="password" type="password" autocomplete="current-password" required></p>
-        \\<p><button type="submit">Log in</button></p>
-        \\</form>
-        \\</body></html>
-    , .{ context_html, err_html, site_esc, path_esc });
+    res.body = try app.templates.renderLogin(res.arena, .{
+        .from_site = from_site,
+        .from_path = from_path,
+        .err_msg = err,
+        .has_from_site = from_site.len > 0,
+        .has_error = err.len > 0,
+    });
 }
 
 pub fn loginPost(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -205,7 +164,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     defer rows.deinit(res.arena);
 
     try rows.appendSlice(res.arena,
-        \\<table border="1" cellpadding="4">
+        \\<table>
         \\<tr><th>ID</th><th>Username / Password</th><th>Delete</th></tr>
     );
 
@@ -271,7 +230,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     var groups_html: std.ArrayList(u8) = .empty;
     defer groups_html.deinit(res.arena);
     try groups_html.appendSlice(res.arena,
-        \\<table border="1" cellpadding="4">
+        \\<table>
         \\<tr><th>ID</th><th>Name</th><th>Members</th><th>Delete</th></tr>
     );
     for (groups) |g| {
@@ -337,44 +296,12 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const sites_table = try app.sites.htmlTable(app.io, res.arena);
 
     res.content_type = .HTML;
-    res.body = try std.fmt.allocPrint(res.arena,
-        \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Admin</title></head><body>
-        \\<h1>Authum Admin</h1>
-        \\<p><a href="/logout">Log out</a></p>
-        \\<p>Traefik calls <code>/auth/verify</code> on each protected request. Unknown hosts are denied. Allowed requests get the identity headers named in Sites. After form login, users hit <code>https://&#123;host&#125;/_authum/login</code> once so each site gets its own cookie (same session id).</p>
-        \\
-        \\<h2>ACL</h2>
-        \\<p>Tab-separated; first matching row wins; no match means deny. Columns: <code>user</code>, <code>site_id</code>, <code>path_prefix</code>, <code>method</code>, <code>effect</code> (<code>allow</code>/<code>deny</code>).</p>
-        \\<ul>
-        \\<li><code>user</code>: <code>*</code> (anyone), <code>id:username</code> (numeric id is what matches; username is a label), or <code>@group</code> (any member of that group).</li>
-        \\<li><code>site_id</code>: a Sites id or <code>*</code> — not the hostname.</li>
-        \\<li><code>path_prefix</code> / <code>method</code>: path must start with the prefix; method is exact or <code>*</code>.</li>
-        \\</ul>
-        \\{s}
-        \\<p><a href="/admin/acl.tsv">Download ACL</a></p>
-        \\<form method="POST" action="/admin/acl" enctype="multipart/form-data">
-        \\<input type="file" name="file" accept=".tsv,text/tab-separated-values,text/plain" required>
-        \\<button type="submit">Upload ACL</button>
-        \\</form>
-        \\
-        \\<h2>Sites</h2>
-        \\<p>Columns: <code>site_id</code>, <code>host</code> (no scheme), <code>user_header</code>, <code>user_id_header</code>, <code>user_name_header</code>. Configure Traefik <code>authResponseHeaders</code> to forward those header names. <code>site_id</code> is what ACL rows refer to.</p>
-        \\{s}
-        \\<p><a href="/admin/sites.tsv">Download Sites</a></p>
-        \\<form method="POST" action="/admin/sites" enctype="multipart/form-data">
-        \\<input type="file" name="file" accept=".tsv,text/tab-separated-values,text/plain" required>
-        \\<button type="submit">Upload Sites</button>
-        \\</form>
-        \\
-        \\<h2>Users</h2>
-        \\<p>Usernames are <code>[A-Za-z0-9_]</code> only. The env admin user cannot be renamed or deleted; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup.</p>
-        \\{s}
-        \\
-        \\<h2>Groups</h2>
-        \\<p>Put people in a group, then use <code>@groupname</code> in the ACL instead of repeating per-user rows. Renaming a group does not rewrite ACL text—update the TSV if you change the name. Deleting a group (or removing all members) makes <code>@name</code> rules stop matching.</p>
-        \\{s}
-        \\</body></html>
-    , .{ acl_table, sites_table, rows.items, groups_html.items });
+    res.body = try app.templates.renderAdmin(res.arena, .{
+        .acl_table = acl_table,
+        .sites_table = sites_table,
+        .users_html = rows.items,
+        .groups_html = groups_html.items,
+    });
 }
 
 pub fn aclDownload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {

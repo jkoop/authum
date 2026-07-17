@@ -184,7 +184,7 @@ pub const Acl = struct {
         var out: std.ArrayList(u8) = .empty;
         errdefer out.deinit(allocator);
         try out.appendSlice(allocator,
-            \\<table border="1" cellpadding="4">
+            \\<table>
             \\<tr><th>user</th><th>site_id</th><th>path_prefix</th><th>method</th><th>effect</th></tr>
         );
         for (self.rules) |rule| {

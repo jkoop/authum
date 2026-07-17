@@ -122,7 +122,7 @@ pub const Sites = struct {
         var out: std.ArrayList(u8) = .empty;
         errdefer out.deinit(allocator);
         try out.appendSlice(allocator,
-            \\<table border="1" cellpadding="4">
+            \\<table>
             \\<tr><th>site_id</th><th>host</th><th>user_header</th><th>user_id_header</th><th>user_name_header</th></tr>
         );
         for (self.sites) |site| {

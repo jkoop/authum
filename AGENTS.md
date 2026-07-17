@@ -23,6 +23,7 @@ Local checkouts of dependencies also appear under `zig-pkg/` (gitignored). Prefe
 | [`src/config.zig`](src/config.zig) | Env: `AUTHUM_DOMAIN`, `AUTHUM_ADMIN_USER`/`PASSWORD`, `AUTHUM_LISTEN`, `AUTHUM_DB_PATH` |
 | [`src/verify.zig`](src/verify.zig) | `GET /auth/verify` — Traefik ForwardAuth + inferred `/_authum/*` |
 | [`src/web.zig`](src/web.zig) | Login domain UI: login/logout, admin, password change |
+| [`src/templates.zig`](src/templates.zig) / [`src/views/`](src/views/) | ztl templates (embedded) for login/account/admin |
 | [`src/db.zig`](src/db.zig) | SQLite schema, users/sessions/tickets, TSV document persistence |
 | [`src/acl.zig`](src/acl.zig) / [`src/sites.zig`](src/sites.zig) | In-memory TSV parse/match (+ read-only HTML tables) |
 | [`src/password.zig`](src/password.zig) | Argon2id hash/verify (needs `std.Io`) |

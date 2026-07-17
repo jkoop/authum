@@ -12,6 +12,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const ztl = b.dependency("ztl", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
         .name = "authum",
@@ -23,6 +27,7 @@ pub fn build(b: *std.Build) void {
             .imports = &.{
                 .{ .name = "httpz", .module = httpz.module("httpz") },
                 .{ .name = "zqlite", .module = zqlite.module("zqlite") },
+                .{ .name = "ztl", .module = ztl.module("ztl") },
             },
         }),
     });

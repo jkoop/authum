@@ -4,6 +4,7 @@ const zqlite = @import("zqlite");
 const config_mod = @import("config.zig");
 const acl_mod = @import("acl.zig");
 const sites_mod = @import("sites.zig");
+const templates_mod = @import("templates.zig");
 const db = @import("db.zig");
 const verify = @import("verify.zig");
 const web = @import("web.zig");
@@ -15,8 +16,10 @@ pub const App = struct {
     pool: *zqlite.Pool,
     acl: acl_mod.Acl,
     sites: sites_mod.Sites,
+    templates: templates_mod.Templates,
 
     pub fn deinit(self: *App) void {
+        self.templates.deinit();
         self.acl.deinit();
         self.sites.deinit();
         self.pool.deinit();

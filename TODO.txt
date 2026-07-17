@@ -1,4 +1,3 @@
 - LDAP so Jellyfin can use this.
 - Log in with Discord, so inviting friends is easier.
-- Make it look good; use templates: https://github.com/karlseguin/ztl
 - Make ACL path use regex, so I can forbid PDFs for example.

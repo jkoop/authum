@@ -40,13 +40,14 @@
             .url = "git+https://github.com/karlseguin/zqlite.zig?ref=master#a9c1cd3657315306856ddf4a8a28a11b10fd5a9d",
             .hash = "zqlite-0.0.1-RWLaYyc7nABTzVzEpEMPi3qD8xJHi0a2ycNgL73XyEdt",
         },
+        .ztl = .{
+            .url = "git+https://github.com/karlseguin/ztl?ref=master#ab5782eeadf6e2d50c152a17588c2ba8bb02436f",
+            .hash = "ztl-0.0.0-XMYgXFcdBQAlVCTnNxQwUmKOf7Uqkw-B1xSkns62dhqo",
+        },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
-        // For example...
-        //"LICENSE",
-        //"README.md",
     },
 }

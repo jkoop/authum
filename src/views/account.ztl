@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account · authum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<% @include('styles') %>
+</head>
+<body>
+<div class="wrap">
+  <div class="topnav">
+    <div class="brand">authum</div>
+    <a href="/logout">Log out</a>
+  </div>
+  <h1>Account</h1>
+  <div class="panel stack">
+    <p>Logged in as <strong><%= @username %></strong> (id <%= @user_id %>).</p>
+    <p class="lede">This login is shared across the sites your admin has allowed. To sign out of a specific app, use that site’s logout (or visit <code>/_authum/logout</code> on that host). Logging out here ends the session everywhere.</p>
+    <% if (@has_msg) { -%>
+      <p class="msg-ok"><%= @msg %></p>
+    <% } -%>
+    <% if (@has_error) { -%>
+      <p class="msg-err"><%= @err_msg %></p>
+    <% } -%>
+    <h2>Change password</h2>
+    <p class="lede">Use a password manager–friendly unique password. Changing it here updates the single account used for all sites.</p>
+    <form method="POST" action="/password">
+      <label>Current password</label>
+      <input name="current_password" type="password" required autocomplete="current-password">
+      <label>New password</label>
+      <input name="new_password" type="password" required autocomplete="new-password">
+      <label>Confirm new password</label>
+      <input name="confirm_password" type="password" required autocomplete="new-password">
+      <p style="margin-top:1rem"><button type="submit">Change password</button></p>
+    </form>
+  </div>
+</div>
+</body>
+</html>
