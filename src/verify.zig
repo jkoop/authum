@@ -28,7 +28,7 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     // Special paths inferred from the original request.
     if (std.mem.eql(u8, path, "/_authum/login")) {
-        return handleAuthumLogin(app, req, res, arena, host, query, secure);
+        return handleAuthumLogin(app, req, res, arena, host, query, scheme, secure);
     }
     if (std.mem.eql(u8, path, "/_authum/logout")) {
         return handleAuthumLogout(app, req, res, arena, secure);
@@ -131,6 +131,7 @@ fn handleAuthumLogin(
     arena: std.mem.Allocator,
     host: []const u8,
     query: []const u8,
+    scheme: []const u8,
     secure: bool,
 ) !void {
     _ = req;
@@ -166,10 +167,13 @@ fn handleAuthumLogin(
     const dest = if (ticket.path.len > 0) ticket.path else path;
     const dest_path = if (std.mem.startsWith(u8, dest, "/")) dest else try std.fmt.allocPrint(arena, "/{s}", .{dest});
 
+    // Absolute Location: Traefik ForwardAuth resolves relative Location against the
+    // auth backend (e.g. http://authum:8080/...), not the original site host.
+    const loc = try std.fmt.allocPrint(arena, "{s}://{s}{s}", .{ scheme, site.host, dest_path });
     const cookie = try util.setSessionCookie(arena, ticket.session_id, secure);
     res.status = 302;
     res.header("Set-Cookie", cookie);
-    res.header("Location", dest_path);
+    res.header("Location", loc);
     res.body = "logged in";
 }
 
