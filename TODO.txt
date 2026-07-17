@@ -3,3 +3,4 @@
 - Log in with Discord, so inviting friends is easier.
 - More/better inline documentation for admins and plebs.
 - Make it look good; use templates: https://github.com/karlseguin/ztl
+- Make ACL path use regex, so I can forbid PDFs for example.
