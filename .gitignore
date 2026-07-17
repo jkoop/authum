@@ -1,0 +1,6 @@
+/*.tmp
+/.zig-cache
+/zig-out
+/database.sqlite
+/*.sql
+zig-pkg

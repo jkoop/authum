@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "language-server": {
+      "command": "/home/joek/go/bin/mcp-language-server",
+      "args": [ "--workspace", "/home/joek/code/jkoop/authum", "--lsp", "/home/joek/Downloads/zls" ]
+    },
+    "sqlite": {
+      "command": "docker",
+      "args": [ "run", "--rm", "-i", "-v", "/home/joek/code/jkoop/authum:/mcp", "mcp/sqlite", "--db-path", "/mcp/database.sqlite" ]
+    }
+  }
+}
