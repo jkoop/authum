@@ -260,15 +260,7 @@ pub const Acl = struct {
 };
 
 fn validGroupName(name: []const u8) bool {
-    if (name.len == 0) return false;
-    for (name) |c| {
-        const ok = (c >= 'A' and c <= 'Z') or
-            (c >= 'a' and c <= 'z') or
-            (c >= '0' and c <= '9') or
-            c == '_';
-        if (!ok) return false;
-    }
-    return true;
+    return @import("util.zig").validUsername(name);
 }
 
 test "acl first match and default deny" {

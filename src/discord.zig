@@ -163,11 +163,15 @@ fn exchangeAndFetchUser(
         .response_writer = &token_aw.writer,
     });
     if (token_res.status != .ok) return error.DiscordTokenFailed;
-    const token_json = token_aw.written();
-    const access_token = try jsonStringField(arena, token_json, "access_token");
+    const token = try std.json.parseFromSliceLeaky(
+        struct { access_token: []const u8 },
+        arena,
+        token_aw.written(),
+        .{ .ignore_unknown_fields = true },
+    );
 
     var user_aw: std.Io.Writer.Allocating = .init(arena);
-    const auth_header = try std.fmt.allocPrint(arena, "Bearer {s}", .{access_token});
+    const auth_header = try std.fmt.allocPrint(arena, "Bearer {s}", .{token.access_token});
     const user_res = try client.fetch(.{
         .location = .{ .url = "https://discord.com/api/users/@me" },
         .method = .GET,
@@ -177,42 +181,12 @@ fn exchangeAndFetchUser(
         .response_writer = &user_aw.writer,
     });
     if (user_res.status != .ok) return error.DiscordUserFailed;
-    const user_json = user_aw.written();
-    return .{
-        .id = try jsonStringField(arena, user_json, "id"),
-        .username = try jsonStringField(arena, user_json, "username"),
-    };
-}
-
-fn jsonStringField(arena: std.mem.Allocator, json: []const u8, key: []const u8) ![]const u8 {
-    // Find `"key":` without allocating.
-    var search_at: usize = 0;
-    const start = while (search_at < json.len) {
-        const q = std.mem.indexOfScalarPos(u8, json, search_at, '"') orelse return error.MissingJsonField;
-        const after_q = q + 1;
-        if (after_q + key.len + 2 <= json.len and
-            std.mem.eql(u8, json[after_q .. after_q + key.len], key) and
-            json[after_q + key.len] == '"' and
-            json[after_q + key.len + 1] == ':')
-        {
-            break after_q + key.len + 1; // index of ':'
-        }
-        search_at = after_q;
-    } else return error.MissingJsonField;
-    var i = start + 1;
-    while (i < json.len and (json[i] == ' ' or json[i] == '\t')) : (i += 1) {}
-    if (i >= json.len or json[i] != '"') return error.MissingJsonField;
-    i += 1;
-    const value_start = i;
-    while (i < json.len) : (i += 1) {
-        if (json[i] == '\\') {
-            i += 1;
-            continue;
-        }
-        if (json[i] == '"') break;
-    }
-    if (i >= json.len) return error.MissingJsonField;
-    return try arena.dupe(u8, json[value_start..i]);
+    return try std.json.parseFromSliceLeaky(
+        DiscordUser,
+        arena,
+        user_aw.written(),
+        .{ .ignore_unknown_fields = true },
+    );
 }
 
 fn redirectUri(app: *App, arena: std.mem.Allocator) ![]u8 {
@@ -223,8 +197,7 @@ fn uniqueUsername(conn: anytype, arena: std.mem.Allocator, discord_name: []const
     var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(arena);
     for (discord_name) |c| {
-        const ok = (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or (c >= '0' and c <= '9') or c == '_';
-        if (ok) try buf.append(arena, c);
+        if (std.ascii.isAlphanumeric(c) or c == '_') try buf.append(arena, c);
     }
     if (buf.items.len == 0) try buf.appendSlice(arena, "discord");
     if (buf.items.len > 32) buf.items.len = 32;
@@ -260,14 +233,17 @@ fn isSecureRequest(req: *httpz.Request) bool {
     return false;
 }
 
-test "jsonStringField" {
+test "discord user json parse" {
     const json =
         \\{"id":"12345","username":"Cool_User","avatar":null}
     ;
-    const id = try jsonStringField(std.testing.allocator, json, "id");
-    defer std.testing.allocator.free(id);
-    const username = try jsonStringField(std.testing.allocator, json, "username");
-    defer std.testing.allocator.free(username);
-    try std.testing.expectEqualStrings("12345", id);
-    try std.testing.expectEqualStrings("Cool_User", username);
+    const parsed = try std.json.parseFromSlice(
+        DiscordUser,
+        std.testing.allocator,
+        json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+    try std.testing.expectEqualStrings("12345", parsed.value.id);
+    try std.testing.expectEqualStrings("Cool_User", parsed.value.username);
 }

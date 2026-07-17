@@ -3,11 +3,7 @@ const std = @import("std");
 pub fn validUsername(name: []const u8) bool {
     if (name.len == 0) return false;
     for (name) |c| {
-        const ok = (c >= 'a' and c <= 'z') or
-            (c >= 'A' and c <= 'Z') or
-            (c >= '0' and c <= '9') or
-            c == '_';
-        if (!ok) return false;
+        if (!(std.ascii.isAlphanumeric(c) or c == '_')) return false;
     }
     return true;
 }
@@ -76,53 +72,27 @@ pub fn queryGet(query: []const u8, key: []const u8) ?[]const u8 {
     return null;
 }
 
+/// Percent-decode into a new slice. Uses `std.Uri` (no `+` → space).
 pub fn urlDecode(allocator: std.mem.Allocator, encoded: []const u8) ![]u8 {
-    var list: std.ArrayList(u8) = .empty;
-    errdefer list.deinit(allocator);
-    var i: usize = 0;
-    while (i < encoded.len) {
-        const c = encoded[i];
-        if (c == '+') {
-            try list.append(allocator, ' ');
-            i += 1;
-        } else if (c == '%' and i + 2 < encoded.len) {
-            const hi = std.fmt.parseInt(u8, encoded[i + 1 .. i + 2], 16) catch {
-                try list.append(allocator, c);
-                i += 1;
-                continue;
-            };
-            const lo = std.fmt.parseInt(u8, encoded[i + 2 .. i + 3], 16) catch {
-                try list.append(allocator, c);
-                i += 1;
-                continue;
-            };
-            try list.append(allocator, (hi << 4) | lo);
-            i += 3;
-        } else {
-            try list.append(allocator, c);
-            i += 1;
-        }
-    }
-    return try list.toOwnedSlice(allocator);
+    const buf = try allocator.dupe(u8, encoded);
+    defer allocator.free(buf);
+    const decoded = std.Uri.percentDecodeInPlace(buf);
+    return try allocator.dupe(u8, decoded);
 }
 
+/// Percent-encode a single query/path value (keeps `/` unescaped for path redirects).
 pub fn urlEncode(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
-    var list: std.ArrayList(u8) = .empty;
-    errdefer list.deinit(allocator);
-    for (value) |c| {
-        const unreserved = (c >= 'A' and c <= 'Z') or
-            (c >= 'a' and c <= 'z') or
-            (c >= '0' and c <= '9') or
-            c == '-' or c == '_' or c == '.' or c == '~' or c == '/';
-        if (unreserved) {
-            try list.append(allocator, c);
-        } else {
-            var buf: [3]u8 = undefined;
-            _ = try std.fmt.bufPrint(&buf, "%{X:0>2}", .{c});
-            try list.appendSlice(allocator, &buf);
-        }
-    }
-    return try list.toOwnedSlice(allocator);
+    var aw: std.Io.Writer.Allocating = .init(allocator);
+    errdefer aw.deinit();
+    try std.Uri.Component.percentEncode(&aw.writer, value, isUrlValueChar);
+    return try aw.toOwnedSlice();
+}
+
+fn isUrlValueChar(c: u8) bool {
+    return std.ascii.isAlphanumeric(c) or switch (c) {
+        '-', '_', '.', '~', '/' => true,
+        else => false,
+    };
 }
 
 pub fn parseBasicAuth(allocator: std.mem.Allocator, header: []const u8) !?struct { username: []u8, password: []u8 } {
@@ -211,4 +181,13 @@ test "validUsername" {
     try std.testing.expect(!validUsername(""));
     try std.testing.expect(!validUsername("alice-bob"));
     try std.testing.expect(!validUsername("a b"));
+}
+
+test "urlEncode urlDecode round-trip" {
+    const enc = try urlEncode(std.testing.allocator, "a b/c");
+    defer std.testing.allocator.free(enc);
+    try std.testing.expectEqualStrings("a%20b/c", enc);
+    const dec = try urlDecode(std.testing.allocator, enc);
+    defer std.testing.allocator.free(dec);
+    try std.testing.expectEqualStrings("a b/c", dec);
 }

@@ -1,0 +1,34 @@
+---
+description: Prefer Zig standard library over hand-rolled helpers
+alwaysApply: true
+---
+
+# Prefer stdlib
+
+Before writing parsing, encoding, or character-class helpers, check Zig 0.16 std (`zig0.16 env` → `std_dir`). Use std when it covers the need.
+
+## Prefer
+
+| Need | Use |
+|------|-----|
+| JSON | `std.json.parseFromSlice` / `Value` |
+| Percent-encoding | `std.Uri.Component.percentEncode`, `std.Uri.percentDecodeInPlace` |
+| ASCII letter/digit/hex | `std.ascii.isAlphanumeric`, `isAlphabetic`, `isDigit`, `isHex`, … |
+| Base64 | `std.base64` |
+| Hex of bytes | `std.fmt.bytesToHex` |
+
+## Thin wrappers are fine
+
+Project helpers (e.g. `util.urlEncode`) may wrap std for allocator/arena ergonomics or a fixed character set. Do not reimplement the algorithm underneath.
+
+## When custom is OK
+
+Protocol codecs with no std equivalent (e.g. LDAP BER), domain rules that are not general libraries, and HTML escaping remain fine as local code.
+
+```zig
+// BAD
+const ok = (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or (c >= '0' and c <= '9');
+
+// GOOD
+const ok = std.ascii.isAlphanumeric(c) or c == '_';
+```
