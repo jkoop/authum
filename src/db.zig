@@ -9,6 +9,7 @@ pub const User = struct {
     id: i64,
     username: []const u8,
     enabled: bool,
+    discord_id: ?[]const u8,
 };
 
 pub const Group = struct {
@@ -58,7 +59,6 @@ const schema =
     \\  id integer primary key,
     \\  name text not null unique,
     \\  host text not null unique,
-    \\  user_header text not null,
     \\  user_id_header text not null,
     \\  user_name_header text not null
     \\);
@@ -105,6 +105,7 @@ pub fn migrate(conn: zqlite.Conn, _: ?*anyopaque) !void {
         \\create unique index if not exists users_discord_id_unique
         \\on users(discord_id) where discord_id is not null
     );
+    conn.execNoArgs("alter table sites drop column user_header") catch {};
 
     // Existing DBs may still have tickets.site_id as text (no FK). Recreate.
     if (try ticketsSiteIdIsText(conn)) {
@@ -198,23 +199,21 @@ fn importLegacySitesDocument(conn: zqlite.Conn, allocator: std.mem.Allocator, ts
 
         const site_id = cols[0];
         const host = cols[1];
-        const user_header = cols[2];
+        // Legacy col 2 was user_header; ignored after removal.
         const user_id_header = cols[3];
         const user_name_header = cols[4];
 
         if (std.mem.eql(u8, site_id, "site_id") and (host.len == 0 or std.mem.eql(u8, host, "host"))) continue;
-        if (site_id.len == 0 or host.len == 0 or user_header.len == 0 or
-            user_id_header.len == 0 or user_name_header.len == 0)
-        {
+        if (site_id.len == 0 or host.len == 0 or user_id_header.len == 0 or user_name_header.len == 0) {
             std.log.warn("skipping legacy sites line {d}: incomplete", .{line_no});
             continue;
         }
 
         try conn.exec(
-            \\insert into sites (name, host, user_header, user_id_header, user_name_header)
-            \\values (?1, ?2, ?3, ?4, ?5)
+            \\insert into sites (name, host, user_id_header, user_name_header)
+            \\values (?1, ?2, ?3, ?4)
         ,
-            .{ site_id, host, user_header, user_id_header, user_name_header },
+            .{ site_id, host, user_id_header, user_name_header },
         );
     }
 }
@@ -379,7 +378,6 @@ pub fn listSites(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]SiteRow {
         for (list.items) |s| {
             allocator.free(s.name);
             allocator.free(s.host);
-            allocator.free(s.user_header);
             allocator.free(s.user_id_header);
             allocator.free(s.user_name_header);
         }
@@ -387,7 +385,7 @@ pub fn listSites(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]SiteRow {
     }
 
     var rows = try conn.rows(
-        \\select id, name, host, user_header, user_id_header, user_name_header
+        \\select id, name, host, user_id_header, user_name_header
         \\from sites order by id
     ,
         .{},
@@ -398,9 +396,8 @@ pub fn listSites(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]SiteRow {
             .id = row.int(0),
             .name = try allocator.dupe(u8, row.text(1)),
             .host = try allocator.dupe(u8, row.text(2)),
-            .user_header = try allocator.dupe(u8, row.text(3)),
-            .user_id_header = try allocator.dupe(u8, row.text(4)),
-            .user_name_header = try allocator.dupe(u8, row.text(5)),
+            .user_id_header = try allocator.dupe(u8, row.text(3)),
+            .user_name_header = try allocator.dupe(u8, row.text(4)),
         });
     }
     if (rows.err) |err| return err;
@@ -411,15 +408,14 @@ pub fn createSite(
     conn: zqlite.Conn,
     name: []const u8,
     host: []const u8,
-    user_header: []const u8,
     user_id_header: []const u8,
     user_name_header: []const u8,
 ) !i64 {
     try conn.exec(
-        \\insert into sites (name, host, user_header, user_id_header, user_name_header)
-        \\values (?1, ?2, ?3, ?4, ?5)
+        \\insert into sites (name, host, user_id_header, user_name_header)
+        \\values (?1, ?2, ?3, ?4)
     ,
-        .{ name, host, user_header, user_id_header, user_name_header },
+        .{ name, host, user_id_header, user_name_header },
     );
     return conn.lastInsertedRowId();
 }
@@ -429,49 +425,20 @@ pub fn updateSite(
     id: i64,
     name: []const u8,
     host: []const u8,
-    user_header: []const u8,
     user_id_header: []const u8,
     user_name_header: []const u8,
 ) !void {
     try conn.exec(
-        \\update sites set name = ?1, host = ?2, user_header = ?3,
-        \\user_id_header = ?4, user_name_header = ?5 where id = ?6
+        \\update sites set name = ?1, host = ?2,
+        \\user_id_header = ?3, user_name_header = ?4 where id = ?5
     ,
-        .{ name, host, user_header, user_id_header, user_name_header, id },
+        .{ name, host, user_id_header, user_name_header, id },
     );
 }
 
 pub fn deleteSite(conn: zqlite.Conn, id: i64) !void {
     try conn.exec("delete from tickets where site_id = ?1", .{id});
     try conn.exec("delete from sites where id = ?1", .{id});
-}
-
-/// Full replace of sites from parsed TSV rows (transactional). Cascades site-scoped ACL rules.
-pub fn replaceSites(conn: zqlite.Conn, rows: []const sites_mod.ParsedSite) !void {
-    try conn.transaction();
-    errdefer conn.rollback();
-
-    try conn.execNoArgs("delete from tickets");
-    try conn.execNoArgs("delete from sites");
-
-    for (rows) |r| {
-        if (r.id) |id| {
-            try conn.exec(
-                \\insert into sites (id, name, host, user_header, user_id_header, user_name_header)
-                \\values (?1, ?2, ?3, ?4, ?5, ?6)
-            ,
-                .{ id, r.name, r.host, r.user_header, r.user_id_header, r.user_name_header },
-            );
-        } else {
-            try conn.exec(
-                \\insert into sites (name, host, user_header, user_id_header, user_name_header)
-                \\values (?1, ?2, ?3, ?4, ?5)
-            ,
-                .{ r.name, r.host, r.user_header, r.user_id_header, r.user_name_header },
-            );
-        }
-    }
-    try conn.commit();
 }
 
 // --- acl_rules CRUD ---
@@ -595,28 +562,6 @@ pub fn moveAclRule(conn: zqlite.Conn, id: i64, direction: AclMoveDir) !void {
     try conn.exec("update acl_rules set pos = ?1 where id = ?2", .{ pos, nid });
 }
 
-pub fn replaceAclRules(conn: zqlite.Conn, rows: []const acl_mod.ParsedRule) !void {
-    try conn.transaction();
-    errdefer conn.rollback();
-
-    try conn.execNoArgs("delete from acl_rules");
-    for (rows, 0..) |r, i| {
-        const parts = subjectParts(r.subject);
-        try insertAclRule(
-            conn,
-            @intCast(i),
-            parts[0],
-            parts[1],
-            parts[2],
-            r.site_id,
-            r.path,
-            r.method,
-            @tagName(r.effect),
-        );
-    }
-    try conn.commit();
-}
-
 pub fn createUser(
     conn: zqlite.Conn,
     allocator: std.mem.Allocator,
@@ -663,17 +608,22 @@ fn randomPassword(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
 pub fn listUsers(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]User {
     var list: std.ArrayList(User) = .empty;
     errdefer {
-        for (list.items) |u| allocator.free(u.username);
+        for (list.items) |u| {
+            allocator.free(u.username);
+            if (u.discord_id) |d| allocator.free(d);
+        }
         list.deinit(allocator);
     }
 
-    var rows = try conn.rows("select id, username, enabled from users order by id", .{});
+    var rows = try conn.rows("select id, username, enabled, discord_id from users order by id", .{});
     defer rows.deinit();
     while (rows.next()) |row| {
+        const discord_raw = row.nullableText(3);
         try list.append(allocator, .{
             .id = row.int(0),
             .username = try allocator.dupe(u8, row.text(1)),
             .enabled = row.int(2) != 0,
+            .discord_id = if (discord_raw) |d| try allocator.dupe(u8, d) else null,
         });
     }
     if (rows.err) |err| return err;
@@ -904,6 +854,19 @@ pub fn setUserEnabled(conn: zqlite.Conn, id: i64, enabled: bool) !void {
     try conn.exec("update users set enabled = ?1 where id = ?2", .{ if (enabled) @as(i64, 1) else @as(i64, 0), id });
 }
 
+/// Empty / null clears the Discord link. Non-empty sets it (unique when not null).
+pub fn setUserDiscordId(conn: zqlite.Conn, id: i64, discord_id: ?[]const u8) !void {
+    if (discord_id) |d| {
+        if (d.len == 0) {
+            try conn.exec("update users set discord_id = null where id = ?1", .{id});
+        } else {
+            try conn.exec("update users set discord_id = ?1 where id = ?2", .{ d, id });
+        }
+    } else {
+        try conn.exec("update users set discord_id = null where id = ?1", .{id});
+    }
+}
+
 pub fn usernameTaken(conn: zqlite.Conn, username: []const u8) !bool {
     if (try conn.row("select 1 from users where username = ?1", .{username})) |row| {
         row.deinit();
@@ -1033,7 +996,6 @@ test "migrateDocumentsToTables imports legacy TSV" {
         for (sites) |s| {
             std.testing.allocator.free(s.name);
             std.testing.allocator.free(s.host);
-            std.testing.allocator.free(s.user_header);
             std.testing.allocator.free(s.user_id_header);
             std.testing.allocator.free(s.user_name_header);
         }

@@ -16,7 +16,7 @@
   <div class="panel stack">
     <p class="lede">This is the authum login domain. Your password is entered only here—not on each app—so password managers stay happy.</p>
     <% if (@has_from_site) { -%>
-      <p class="lede">Sign in to continue to <strong><%= @from_site %></strong>. After login you will return to that site with a session cookie for that host.</p>
+      <p class="lede">Sign in to continue to <strong><%= @site_name %></strong>. After login you will return to that site with a session cookie for that host.</p>
     <% } else { -%>
       <p class="lede">Sign in to manage your account password, or open a protected site and you will be sent here automatically.</p>
     <% } -%>

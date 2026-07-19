@@ -55,8 +55,8 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         defer conn.release(app.io);
         break :blk try db.listGroupIdsForUser(conn, arena, user.user_id);
     };
-    const effect = app.acl.decide(app.io, user.user_id, groups, site.id, path, method);
-    if (effect == .deny) {
+    const decision = app.acl.decideWithRule(app.io, user.user_id, groups, site.id, path, method);
+    if (decision.effect == .deny) {
         return respondForbidden(app, req, res, arena, browser, .{
             .reason = "forbidden",
             .hint = "You are authenticated, but ACL denied this request. Check site id, path regex, method, and user/group columns in the ACL.",
@@ -66,12 +66,12 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             .site_name = site.name,
             .site_id = try std.fmt.allocPrint(arena, "{d}", .{site.id}),
             .user = user,
+            .acl_rule_id = decision.rule_id,
         });
     }
 
     const id_str = try std.fmt.allocPrint(arena, "{d}", .{user.user_id});
     res.status = 200;
-    res.header(site.user_header, user.username);
     res.header(site.user_id_header, id_str);
     res.header(site.user_name_header, user.username);
     res.body = "OK";
@@ -160,6 +160,7 @@ const ForbiddenCtx = struct {
     site_name: []const u8,
     site_id: []const u8,
     user: ?db.SessionUser,
+    acl_rule_id: ?i64 = null,
 };
 
 fn respondForbidden(
@@ -170,6 +171,7 @@ fn respondForbidden(
     browser: bool,
     ctx: ForbiddenCtx,
 ) !void {
+    log403(app, req, ctx);
     res.status = 403;
     if (!browser) {
         res.body = ctx.reason;
@@ -201,6 +203,27 @@ fn respondForbidden(
             .{ util.schemeFromProto(req.header("x-forwarded-proto")), app.config.domain },
         ),
     });
+}
+
+fn log403(app: *App, req: *httpz.Request, ctx: ForbiddenCtx) void {
+    const ts = util.unixNow(app.io);
+    const user_name = if (ctx.user) |u| u.username else "-";
+    std.log.warn(
+        "[{d}] 403 reason={s} acl_rule_id={?d} host={s} path={s} method={s} user={s} site_name={s} site_id={s} fwd_host={s} fwd_uri={s}",
+        .{
+            ts,
+            ctx.reason,
+            ctx.acl_rule_id,
+            ctx.host,
+            ctx.path,
+            ctx.method,
+            user_name,
+            ctx.site_name,
+            ctx.site_id,
+            req.header("x-forwarded-host") orelse "-",
+            req.header("x-forwarded-uri") orelse "-",
+        },
+    );
 }
 
 fn handleAuthumLogin(

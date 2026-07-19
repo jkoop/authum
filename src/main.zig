@@ -37,7 +37,6 @@ pub fn main(init: std.process.Init) !void {
             .max_form_count = 32,
             .max_query_count = 32,
             .max_header_count = 64,
-            .max_multiform_count = 8,
         },
     }, &app);
     defer {

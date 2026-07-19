@@ -64,7 +64,6 @@ pub fn reloadSites(app: *App, conn: zqlite.Conn) !void {
         for (rows) |s| {
             app.allocator.free(s.name);
             app.allocator.free(s.host);
-            app.allocator.free(s.user_header);
             app.allocator.free(s.user_id_header);
             app.allocator.free(s.user_name_header);
         }
@@ -94,14 +93,10 @@ pub fn registerRoutes(app: *App, router: anytype) void {
     router.get("/logout", web.logout, .{});
     router.post("/logout", web.logout, .{});
     router.get("/admin", web.adminGet, .{});
-    router.get("/admin/acl.tsv", web.aclDownload, .{});
-    router.post("/admin/acl/upload", web.aclUpload, .{});
     router.post("/admin/acl", web.aclCreate, .{});
     router.post("/admin/acl/update", web.aclUpdate, .{});
     router.post("/admin/acl/delete", web.aclDelete, .{});
     router.post("/admin/acl/move", web.aclMove, .{});
-    router.get("/admin/sites.tsv", web.sitesDownload, .{});
-    router.post("/admin/sites/upload", web.sitesUpload, .{});
     router.post("/admin/sites", web.sitesCreate, .{});
     router.post("/admin/sites/update", web.sitesUpdate, .{});
     router.post("/admin/sites/delete", web.sitesDelete, .{});

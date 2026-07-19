@@ -36,7 +36,7 @@ labels:
 # Login UI (AUTHUM_DOMAIN) — no ForwardAuth; route to the authum service
 ```
 
-Register each app under admin **Sites** and allow paths under **ACL** (editable tables; TSV download/upload is backup). After login, users bounce through `https://{host}/_authum/login` so each site can set its own cookie (same session id everywhere).
+Register each app under admin **Sites** and allow paths under **ACL** (editable tables). After login, users bounce through `https://{host}/_authum/login` so each site can set its own cookie (same session id everywhere).
 
 ## Sites
 
@@ -47,14 +47,7 @@ Stored in SQLite (`sites`). ACL and tickets reference the numeric `id`. `name` i
 | `id` | Stable numeric id (ACL / login `from_site`) |
 | `name` | Human label |
 | `host` | Hostname only (no `https://`) |
-| `user_header` / `user_id_header` / `user_name_header` | Response headers Traefik must forward |
-
-Backup TSV:
-
-```tsv
-id	name	host	user_header	user_id_header	user_name_header
-1	jellyfin	media.example.com	Remote-User	Remote-User-Id	Remote-User-Name
-```
+| `user_id_header` / `user_name_header` | Response headers Traefik must forward (user id and username) |
 
 ## ACL
 
@@ -65,17 +58,8 @@ Stored in SQLite (`acl_rules`) with foreign keys to users, groups, and sites. Fi
 | `user` | `*` (anyone), `#id` (user id), or `@id` (group id) |
 | `site_id` | Numeric site id or `*` |
 | `path` | RE2-style regex against the request path |
-| `method` | HTTP method or `*` |
+| `method` | `*`, one HTTP method, or a comma-separated list (e.g. `GET,OPTIONS,PROPFIND`) |
 | `effect` | `allow` or `deny` |
-
-Backup TSV:
-
-```tsv
-user	site_id	path	method	effect
-*	2	(?i)\.pdf$	*	deny
-@3	1	^/	*	allow
-#1	*	^/	*	allow
-```
 
 Use `^/…` when you want prefix-style matching. Renaming users, groups, or site names does not break ACL rows (ids are what match).
 

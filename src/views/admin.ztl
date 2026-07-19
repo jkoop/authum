@@ -20,31 +20,21 @@
     <p class="lede">Traefik calls <code>/auth/verify</code> on each protected request. Unknown hosts are denied. Allowed requests get the identity headers named in Sites. After form login, users hit <code>https://{host}/_authum/login</code> once so each site gets its own cookie (same session id).</p>
 
     <h2>ACL</h2>
-    <p class="lede">First matching row wins; no match means deny. Edit rows below, or use TSV as backup import/export.</p>
+    <p class="lede">First matching row wins; no match means deny.</p>
     <ul class="help">
-      <li><code>user</code>: pick anyone, a user, or a group (TSV still uses <code>*</code>, <code>#id</code>, <code>@id</code>). Renames do not break rules.</li>
-      <li><code>site</code>: pick any site or one Sites row (TSV uses numeric id or <code>*</code>).</li>
+      <li><code>user</code>: anyone, a user, or a group (<code>*</code>, <code>#id</code>, <code>@id</code>). Renames do not break rules.</li>
+      <li><code>site</code>: any site or one Sites row (numeric id or <code>*</code>).</li>
       <li><code>path</code>: RE2-style regex against the request path (e.g. <code>^/</code>, <code>(?i)\.pdf$</code>).</li>
-      <li><code>method</code>: exact HTTP method or <code>*</code>.</li>
+      <li><code>method</code>: <code>*</code>, one method, or a comma-separated list (e.g. <code>GET,OPTIONS,PROPFIND</code>).</li>
     </ul>
     <%= safe @acl_table %>
-    <p><a href="/admin/acl.tsv">Download ACL TSV</a></p>
-    <form method="POST" action="/admin/acl/upload" enctype="multipart/form-data">
-      <input type="file" name="file" accept=".tsv,text/tab-separated-values,text/plain" required>
-      <button type="submit">Upload ACL (replace all)</button>
-    </form>
 
     <h2>Sites</h2>
-    <p class="lede">Numeric <code>id</code> is what ACL rows and login redirects use. <code>name</code> is a renameable label. Host has no scheme. Configure Traefik <code>authResponseHeaders</code> for the header names. TSV is backup import/export.</p>
+    <p class="lede">Numeric <code>id</code> is what ACL rows and login redirects use. <code>name</code> is a renameable label. Host has no scheme. Configure Traefik <code>authResponseHeaders</code> for the header names.</p>
     <%= safe @sites_table %>
-    <p><a href="/admin/sites.tsv">Download Sites TSV</a></p>
-    <form method="POST" action="/admin/sites/upload" enctype="multipart/form-data">
-      <input type="file" name="file" accept=".tsv,text/tab-separated-values,text/plain" required>
-      <button type="submit">Upload Sites (replace all)</button>
-    </form>
 
     <h2>Users</h2>
-    <p class="lede">Usernames are <code>[A-Za-z0-9_]</code> only and cannot be only digits. The env admin user cannot be renamed, deleted, or disabled; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup. Discord sign-ups start <strong>disabled</strong> until you enable them here.</p>
+    <p class="lede">Usernames are <code>[A-Za-z0-9_]</code> only and cannot be only digits. The env admin user cannot be renamed, deleted, or disabled; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup. Discord sign-ups start <strong>disabled</strong> until you enable them here. Set Discord ID to link an account to a Discord snowflake (clear to unlink).</p>
     <%= safe @users_html %>
 
     <h2>Groups</h2>

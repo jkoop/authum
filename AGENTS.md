@@ -12,7 +12,7 @@ Local checkouts of dependencies also appear under `zig-pkg/` (gitignored). Prefe
 
 ## What this is
 
-**authum** is a Traefik ForwardAuth server: username/password login, in-memory ACL + sites registry (loaded from SQLite `acl_rules` / `sites` tables; TSV is backup import/export), per-site session cookies that share one session id, and an ugly admin UI on the login domain.
+**authum** is a Traefik ForwardAuth server: username/password login, in-memory ACL + sites registry (loaded from SQLite `acl_rules` / `sites` tables), per-site session cookies that share one session id, and an ugly admin UI on the login domain.
 
 ## Layout
 
@@ -25,8 +25,9 @@ Local checkouts of dependencies also appear under `zig-pkg/` (gitignored). Prefe
 | [`src/verify.zig`](src/verify.zig) | `GET /auth/verify` — Traefik ForwardAuth + inferred `/_authum/*` |
 | [`src/web.zig`](src/web.zig) | Login domain UI: login/logout, admin, password change |
 | [`src/templates.zig`](src/templates.zig) / [`src/views/`](src/views/) | ztl templates (embedded) for login/account/admin |
+| [`src/static/app.css`](src/static/app.css) | Shared CSS (`@embedFile` into templates) |
 | [`src/db.zig`](src/db.zig) | SQLite schema, users/sessions/tickets/sites/acl_rules, legacy document migration |
-| [`src/acl.zig`](src/acl.zig) / [`src/sites.zig`](src/sites.zig) | In-memory ACL/sites + TSV parse/export |
+| [`src/acl.zig`](src/acl.zig) / [`src/sites.zig`](src/sites.zig) | In-memory ACL/sites registry |
 | [`src/password.zig`](src/password.zig) | Argon2id hash/verify (needs `std.Io`) |
 | [`src/util.zig`](src/util.zig) | Cookies, URL helpers, Basic auth parse, username charset checks |
 
@@ -46,17 +47,15 @@ Dependencies: [http.zig](https://github.com/karlseguin/http.zig) (`httpz`), [zql
 - **Admin is a username, not a role.** Gate is `username == AUTHUM_ADMIN_USER`. Renaming/deleting that user is refused; changing the env var without updating the DB user will lock you out of `/admin`.
 - **`seedAdmin` resets the admin password** from `AUTHUM_ADMIN_PASSWORD` on every startup.
 - **ACL user column is `*`, `#id`, or `@id`.** Authz matches numeric user/group ids (SQLite FKs). Renaming a user or group does not break ACL rows. Orphan group ids (deleted group cascades rules away) simply never match.
-- **ACL `path` is a RE2-style regex** (via zoptia0regex), not a plain prefix. Prefer `^/api/` for prefix-like rules; e.g. `(?i)\.pdf$` to deny PDFs. Invalid patterns fail TSV load with `.invalid`.
+- **ACL `path` is a RE2-style regex** (via zoptia0regex), not a plain prefix. Prefer `^/api/` for prefix-like rules; e.g. `(?i)\.pdf$` to deny PDFs. Invalid patterns are rejected on admin create/update.
+- **ACL `method`** may be `*`, a single method, or a comma-separated list (`GET,OPTIONS,PROPFIND`); matching is case-insensitive (`HEAD` counts as `GET`).
 - **ACL site column is numeric site id, not host or name.** Hostnames live in `sites`; verify looks up by host, then matches ACL on that site’s id (`*` = any site).
-- **Sites hosts have no scheme.** Redirects use `https` unless `X-Forwarded-Proto` is `http`. Login `from_site` is the numeric site id.
+- **Sites hosts have no scheme.** Redirects use `https` unless `X-Forwarded-Proto` is `http`. Login `from_site` is the numeric site id (UI shows the site name).
 - **Per-site cookies, shared session.** Logout anywhere deletes the session row; leftover cookies on other hosts fail verify until cleared.
 - **Browser vs API:** User-Agent containing `Mozilla` → HTML login redirect on verify. Otherwise Basic auth. No CSRF anywhere (intentional).
-- **httpz multipart** needs `max_multiform_count` > 0 (set in `main.zig`) or TSV file uploads silently fail to parse.
 - **zqlite pool:** `acquire(io)` / `release(io)` — Conn is a value type; always release.
 - **Zig 0.16 Io:** argon2, mutexes, clocks, and random go through `std.Io` (`app.io`), not old `std.time.timestamp` / `std.Thread.RwLock`.
-- **TSV parse errors** return `.invalid` with a message; uploads should surface them as 400. Don’t let raw parse errors fall through to the 500 handler.
 - **Usernames / group names:** `[A-Za-z0-9_]` only, and not only digits (`util.validUsername`).
 - **`users.enabled` defaults on.** Discord-provisioned users start disabled; password/session/LDAP/Basic all refuse disabled accounts. Cannot disable `AUTHUM_ADMIN_USER`.
-- **Discord** needs both `AUTHUM_DISCORD_CLIENT_ID` and `AUTHUM_DISCORD_CLIENT_SECRET`; redirect is `https://{AUTHUM_DOMAIN}/login/discord/callback`.
+- **Discord** needs both `AUTHUM_DISCORD_CLIENT_ID` and `AUTHUM_DISCORD_CLIENT_SECRET`; redirect is `https://{AUTHUM_DOMAIN}/login/discord/callback`. Admin can set/clear `users.discord_id`.
 - **No Traefik config in-repo.** Downstream needs ForwardAuth → `/auth/verify` and `authResponseHeaders` (or regex) covering whatever identity header names each site defines.
-- **TSV is backup.** Admin edits sites/ACL as tables; upload replaces all rows for that table.

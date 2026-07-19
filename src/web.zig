@@ -75,6 +75,15 @@ pub fn loginGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const from_path = q.get("from_path") orelse "/";
     const err = q.get("error") orelse "";
 
+    var site_name: []const u8 = from_site;
+    if (from_site.len > 0) {
+        if (std.fmt.parseInt(i64, from_site, 10)) |site_id| {
+            if (try app.sites.byId(app.io, res.arena, site_id)) |site| {
+                site_name = site.name;
+            }
+        } else |_| {}
+    }
+
     const discord_enabled = app.config.discord_client_id != null;
     const discord_href = if (discord_enabled)
         try std.fmt.allocPrint(
@@ -88,6 +97,7 @@ pub fn loginGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.content_type = .HTML;
     res.body = try app.templates.renderLogin(res.arena, .{
         .from_site = from_site,
+        .site_name = site_name,
         .from_path = from_path,
         .err_msg = err,
         .has_from_site = from_site.len > 0,
@@ -185,12 +195,13 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     try rows.appendSlice(res.arena,
         \\<table>
-        \\<tr><th>ID</th><th>Username / Password</th><th>Enabled</th><th>Delete</th></tr>
+        \\<tr><th>ID</th><th>Username</th><th>Password</th><th>Discord ID</th><th>Enabled</th><th></th><th>Delete</th></tr>
     );
 
     for (users) |u| {
         const is_admin = std.mem.eql(u8, u.username, app.config.admin_user);
         const name_esc = try util.htmlEscape(res.arena, u.username);
+        const discord_esc = try util.htmlEscape(res.arena, u.discord_id orelse "");
         const enabled_cell = if (is_admin)
             "yes"
         else if (u.enabled)
@@ -213,56 +224,54 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         if (is_admin) {
             const row = try std.fmt.allocPrint(res.arena,
                 \\<tr>
-                \\<td>{d}</td>
-                \\<td>
-                \\<form method="POST" action="/admin/users/update" style="display:inline">
+                \\<form class="row" method="POST" action="/admin/users/update">
                 \\<input type="hidden" name="id" value="{d}">
                 \\<input type="hidden" name="username" value="{s}">
-                \\{s} <em>(admin)</em>
-                \\<input name="password" type="password" placeholder="new password (optional)">
-                \\<button type="submit">Save</button>
-                \\</form>
-                \\</td>
+                \\<td>{d}</td>
+                \\<td>{s} <em>(admin)</em></td>
+                \\<td><input name="password" type="password" placeholder="new password (optional)"></td>
+                \\<td><input name="discord_id" value="{s}" placeholder="discord id"></td>
                 \\<td>{s}</td>
+                \\<td><button type="submit">Save</button></td>
+                \\</form>
                 \\<td>—</td>
                 \\</tr>
-            , .{ u.id, u.id, name_esc, name_esc, enabled_cell });
+            , .{ u.id, name_esc, u.id, name_esc, discord_esc, enabled_cell });
             try rows.appendSlice(res.arena, row);
         } else {
             const row = try std.fmt.allocPrint(res.arena,
                 \\<tr>
-                \\<td>{d}</td>
-                \\<td>
-                \\<form method="POST" action="/admin/users/update" style="display:inline">
+                \\<form class="row" method="POST" action="/admin/users/update">
                 \\<input type="hidden" name="id" value="{d}">
-                \\<input name="username" value="{s}" required>
-                \\<input name="password" type="password" placeholder="new password (optional)">
-                \\<button type="submit">Save</button>
-                \\</form>
-                \\</td>
+                \\<td>{d}</td>
+                \\<td><input name="username" value="{s}" required></td>
+                \\<td><input name="password" type="password" placeholder="new password (optional)"></td>
+                \\<td><input name="discord_id" value="{s}" placeholder="discord id"></td>
                 \\<td>{s}</td>
+                \\<td><button type="submit">Save</button></td>
+                \\</form>
                 \\<td>
-                \\<form method="POST" action="/admin/users/delete" style="display:inline" onsubmit="return confirm('Delete user?');">
+                \\<form method="POST" action="/admin/users/delete" class="inline" onsubmit="return confirm('Delete user?');">
                 \\<input type="hidden" name="id" value="{d}">
                 \\<button type="submit">Delete</button>
                 \\</form>
                 \\</td>
                 \\</tr>
-            , .{ u.id, u.id, name_esc, enabled_cell, u.id });
+            , .{ u.id, u.id, name_esc, discord_esc, enabled_cell, u.id });
             try rows.appendSlice(res.arena, row);
         }
     }
     try rows.appendSlice(res.arena,
         \\<tr>
+        \\<form class="row" method="POST" action="/admin/users">
         \\<td>+</td>
-        \\<td>
-        \\<form method="POST" action="/admin/users" style="display:inline">
-        \\<input name="username" placeholder="username" required>
-        \\<input name="password" type="password" placeholder="password" required>
-        \\<button type="submit">Add</button>
-        \\</form>
-        \\</td>
+        \\<td><input name="username" placeholder="username" required></td>
+        \\<td><input name="password" type="password" placeholder="password" required></td>
         \\<td></td>
+        \\<td></td>
+        \\<td><button type="submit">Add</button></td>
+        \\<td></td>
+        \\</form>
         \\</tr>
         \\</table>
     );
@@ -272,7 +281,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     defer groups_html.deinit(res.arena);
     try groups_html.appendSlice(res.arena,
         \\<table>
-        \\<tr><th>ID</th><th>Name</th><th>Members</th><th>Delete</th></tr>
+        \\<tr><th>ID</th><th>Name</th><th></th><th>Members</th><th>Delete</th></tr>
     );
     for (groups) |g| {
         const name_esc = try util.htmlEscape(res.arena, g.name);
@@ -283,7 +292,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             const mname = try util.htmlEscape(res.arena, m.username);
             const chip = try std.fmt.allocPrint(res.arena,
                 \\{s} ({d})
-                \\<form method="POST" action="/admin/groups/members/delete" style="display:inline">
+                \\<form method="POST" action="/admin/groups/members/delete" class="inline">
                 \\<input type="hidden" name="group_id" value="{d}">
                 \\<input type="hidden" name="user_id" value="{d}">
                 \\<button type="submit">×</button>
@@ -301,17 +310,15 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         , .{g.id});
         const row = try std.fmt.allocPrint(res.arena,
             \\<tr>
-            \\<td>{d}</td>
-            \\<td>
-            \\<form method="POST" action="/admin/groups/update" style="display:inline">
+            \\<form class="row" method="POST" action="/admin/groups/update">
             \\<input type="hidden" name="id" value="{d}">
-            \\<input name="name" value="{s}" required>
-            \\<button type="submit">Save</button>
+            \\<td>{d}</td>
+            \\<td><input name="name" value="{s}" required></td>
+            \\<td><button type="submit">Save</button></td>
             \\</form>
-            \\</td>
             \\<td>{s}{s}</td>
             \\<td>
-            \\<form method="POST" action="/admin/groups/delete" style="display:inline" onsubmit="return confirm('Delete group?');">
+            \\<form method="POST" action="/admin/groups/delete" class="inline" onsubmit="return confirm('Delete group?');">
             \\<input type="hidden" name="id" value="{d}">
             \\<button type="submit">Delete</button>
             \\</form>
@@ -322,13 +329,13 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
     try groups_html.appendSlice(res.arena,
         \\<tr>
+        \\<form class="row" method="POST" action="/admin/groups">
         \\<td>+</td>
-        \\<td colspan="3">
-        \\<form method="POST" action="/admin/groups" style="display:inline">
-        \\<input name="name" placeholder="group name" required>
-        \\<button type="submit">Add group</button>
+        \\<td><input name="name" placeholder="group name" required></td>
+        \\<td><button type="submit">Add group</button></td>
+        \\<td></td>
+        \\<td></td>
         \\</form>
-        \\</td>
         \\</tr>
         \\</table>
     );
@@ -350,53 +357,47 @@ fn buildSitesHtml(app: *App, arena: std.mem.Allocator) ![]u8 {
     errdefer out.deinit(arena);
     try out.appendSlice(arena,
         \\<table>
-        \\<tr><th>ID</th><th>Name</th><th>Host</th><th>Headers</th><th></th></tr>
+        \\<tr><th>ID</th><th>Name</th><th>Host</th><th>User-Id header</th><th>User-Name header</th><th></th><th></th></tr>
     );
     app.sites.mutex.lockUncancelable(app.io);
     defer app.sites.mutex.unlock(app.io);
     for (app.sites.sites) |s| {
         const name = try util.htmlEscape(arena, s.name);
         const host = try util.htmlEscape(arena, s.host);
-        const uh = try util.htmlEscape(arena, s.user_header);
         const uidh = try util.htmlEscape(arena, s.user_id_header);
         const unh = try util.htmlEscape(arena, s.user_name_header);
         const row = try std.fmt.allocPrint(arena,
             \\<tr>
-            \\<td>{d}</td>
-            \\<td colspan="3">
-            \\<form method="POST" action="/admin/sites/update" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
+            \\<form class="row" method="POST" action="/admin/sites/update">
             \\<input type="hidden" name="id" value="{d}">
-            \\<input name="name" value="{s}" placeholder="name" required>
-            \\<input name="host" value="{s}" placeholder="host" required>
-            \\<input name="user_header" value="{s}" placeholder="user_header" required>
-            \\<input name="user_id_header" value="{s}" placeholder="user_id_header" required>
-            \\<input name="user_name_header" value="{s}" placeholder="user_name_header" required>
-            \\<button type="submit">Save</button>
+            \\<td>{d}</td>
+            \\<td><input name="name" value="{s}" placeholder="name" required></td>
+            \\<td><input name="host" value="{s}" placeholder="host" required></td>
+            \\<td><input name="user_id_header" value="{s}" placeholder="user_id_header" required></td>
+            \\<td><input name="user_name_header" value="{s}" placeholder="user_name_header" required></td>
+            \\<td><button type="submit">Save</button></td>
             \\</form>
-            \\</td>
             \\<td>
-            \\<form method="POST" action="/admin/sites/delete" style="display:inline" onsubmit="return confirm('Delete site? Site-scoped ACL rules are removed.');">
+            \\<form method="POST" action="/admin/sites/delete" class="inline" onsubmit="return confirm('Delete site? Site-scoped ACL rules are removed.');">
             \\<input type="hidden" name="id" value="{d}">
             \\<button type="submit">Delete</button>
             \\</form>
             \\</td>
             \\</tr>
-        , .{ s.id, s.id, name, host, uh, uidh, unh, s.id });
+        , .{ s.id, s.id, name, host, uidh, unh, s.id });
         try out.appendSlice(arena, row);
     }
     try out.appendSlice(arena,
         \\<tr>
+        \\<form class="row" method="POST" action="/admin/sites">
         \\<td>+</td>
-        \\<td colspan="4">
-        \\<form method="POST" action="/admin/sites" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
-        \\<input name="name" placeholder="name" required>
-        \\<input name="host" placeholder="host" required>
-        \\<input name="user_header" placeholder="user_header" value="Remote-User" required>
-        \\<input name="user_id_header" placeholder="user_id_header" value="Remote-User-Id" required>
-        \\<input name="user_name_header" placeholder="user_name_header" value="Remote-User-Name" required>
-        \\<button type="submit">Add site</button>
+        \\<td><input name="name" placeholder="name" required></td>
+        \\<td><input name="host" placeholder="host" required></td>
+        \\<td><input name="user_id_header" placeholder="user_id_header" value="Remote-User-Id" required></td>
+        \\<td><input name="user_name_header" placeholder="user_name_header" value="Remote-User-Name" required></td>
+        \\<td><button type="submit">Add site</button></td>
+        \\<td></td>
         \\</form>
-        \\</td>
         \\</tr>
         \\</table>
     );
@@ -500,7 +501,7 @@ fn buildAclHtml(app: *App, arena: std.mem.Allocator, users: []const db.User, gro
     errdefer out.deinit(arena);
     try out.appendSlice(arena,
         \\<table>
-        \\<tr><th></th><th>User</th><th>Site</th><th>Path</th><th>Method</th><th>Effect</th><th></th></tr>
+        \\<tr><th></th><th>User</th><th>Site</th><th>Path</th><th>Method</th><th>Effect</th><th></th><th></th></tr>
     );
     for (snaps.items) |rule| {
         const user_sel = try buildSubjectSelect(arena, users, groups, rule.subject);
@@ -509,33 +510,33 @@ fn buildAclHtml(app: *App, arena: std.mem.Allocator, users: []const db.User, gro
         const row = try std.fmt.allocPrint(arena,
             \\<tr>
             \\<td>
-            \\<form method="POST" action="/admin/acl/move" style="display:inline">
+            \\<form method="POST" action="/admin/acl/move" class="inline">
             \\<input type="hidden" name="id" value="{d}">
             \\<input type="hidden" name="dir" value="up">
             \\<button type="submit" title="Move up">↑</button>
             \\</form>
-            \\<form method="POST" action="/admin/acl/move" style="display:inline">
+            \\<form method="POST" action="/admin/acl/move" class="inline">
             \\<input type="hidden" name="id" value="{d}">
             \\<input type="hidden" name="dir" value="down">
             \\<button type="submit" title="Move down">↓</button>
             \\</form>
             \\</td>
-            \\<td colspan="5">
-            \\<form method="POST" action="/admin/acl/update" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
+            \\<form class="row" method="POST" action="/admin/acl/update">
             \\<input type="hidden" name="id" value="{d}">
-            \\{s}
-            \\{s}
-            \\<input name="path" value="{s}" placeholder="path regex" required>
-            \\<input name="method" value="{s}" placeholder="method or *" required size="6">
+            \\<td>{s}</td>
+            \\<td>{s}</td>
+            \\<td><input name="path" value="{s}" placeholder="path regex" required></td>
+            \\<td><input name="method" value="{s}" placeholder="GET,OPTIONS,*" required></td>
+            \\<td>
             \\<select name="effect">
             \\<option value="allow"{s}>allow</option>
             \\<option value="deny"{s}>deny</option>
             \\</select>
-            \\<button type="submit">Save</button>
-            \\</form>
             \\</td>
+            \\<td><button type="submit">Save</button></td>
+            \\</form>
             \\<td>
-            \\<form method="POST" action="/admin/acl/delete" style="display:inline" onsubmit="return confirm('Delete rule?');">
+            \\<form method="POST" action="/admin/acl/delete" class="inline" onsubmit="return confirm('Delete rule?');">
             \\<input type="hidden" name="id" value="{d}">
             \\<button type="submit">Delete</button>
             \\</form>
@@ -559,60 +560,20 @@ fn buildAclHtml(app: *App, arena: std.mem.Allocator, users: []const db.User, gro
     const blank_site = try buildSiteSelect(arena, site_opts.items, null);
     try out.appendSlice(arena, try std.fmt.allocPrint(arena,
         \\<tr>
+        \\<form class="row" method="POST" action="/admin/acl">
         \\<td>+</td>
-        \\<td colspan="6">
-        \\<form method="POST" action="/admin/acl" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
-        \\{s}
-        \\{s}
-        \\<input name="path" placeholder="^/" required>
-        \\<input name="method" placeholder="*" value="*" required size="6">
-        \\<select name="effect"><option value="allow">allow</option><option value="deny">deny</option></select>
-        \\<button type="submit">Add rule</button>
+        \\<td>{s}</td>
+        \\<td>{s}</td>
+        \\<td><input name="path" placeholder="^/" required></td>
+        \\<td><input name="method" placeholder="GET,OPTIONS,*" value="*" required></td>
+        \\<td><select name="effect"><option value="allow">allow</option><option value="deny">deny</option></select></td>
+        \\<td><button type="submit">Add rule</button></td>
+        \\<td></td>
         \\</form>
-        \\</td>
         \\</tr>
         \\</table>
     , .{ blank_user, blank_site }));
     return try out.toOwnedSlice(arena);
-}
-
-pub fn aclDownload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    _ = try requireAdmin(app, req, res) orelse return;
-    const body = try app.acl.exportTsv(app.io, res.arena);
-    res.header("Content-Type", "text/tab-separated-values; charset=utf-8");
-    res.header("Content-Disposition", "attachment; filename=\"acl.tsv\"");
-    res.body = body;
-}
-
-pub fn aclUpload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    _ = try requireAdmin(app, req, res) orelse return;
-    const body = try readUploadFile(req) orelse {
-        res.status = 400;
-        res.body = "missing file";
-        return;
-    };
-    const parsed = try acl_mod.Acl.parseTsv(body, res.arena);
-    switch (parsed) {
-        .ok => |rows| {
-            const conn = try app.pool.acquire(app.io);
-            defer conn.release(app.io);
-            try db.replaceAclRules(conn, rows);
-            try app_mod.reloadAcl(app, conn);
-        },
-        .invalid => |msg| {
-            res.status = 400;
-            res.content_type = .HTML;
-            res.body = try std.fmt.allocPrint(res.arena,
-                \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
-                \\<p style="color:red">{s}</p>
-                \\<p><a href="/admin">Back</a></p>
-                \\</body></html>
-            , .{try util.htmlEscape(res.arena, msg)});
-            return;
-        },
-    }
-    res.status = 302;
-    res.header("Location", "/admin");
 }
 
 fn parseAclForm(form: anytype, arena: std.mem.Allocator) !struct {
@@ -749,64 +710,21 @@ pub fn aclMove(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.header("Location", "/admin");
 }
 
-pub fn sitesDownload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    _ = try requireAdmin(app, req, res) orelse return;
-    const body = try app.sites.exportTsv(app.io, res.arena);
-    res.header("Content-Type", "text/tab-separated-values; charset=utf-8");
-    res.header("Content-Disposition", "attachment; filename=\"sites.tsv\"");
-    res.body = body;
-}
-
-pub fn sitesUpload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    _ = try requireAdmin(app, req, res) orelse return;
-    const body = try readUploadFile(req) orelse {
-        res.status = 400;
-        res.body = "missing file";
-        return;
-    };
-    const parsed = try @import("sites.zig").Sites.parseTsv(body, res.arena);
-    switch (parsed) {
-        .ok => |rows| {
-            const conn = try app.pool.acquire(app.io);
-            defer conn.release(app.io);
-            try db.replaceSites(conn, rows);
-            try app_mod.reloadSites(app, conn);
-            try app_mod.reloadAcl(app, conn); // site-scoped rules may have cascaded away
-        },
-        .invalid => |msg| {
-            res.status = 400;
-            res.content_type = .HTML;
-            res.body = try std.fmt.allocPrint(res.arena,
-                \\<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
-                \\<p style="color:red">{s}</p>
-                \\<p><a href="/admin">Back</a></p>
-                \\</body></html>
-            , .{try util.htmlEscape(res.arena, msg)});
-            return;
-        },
-    }
-    res.status = 302;
-    res.header("Location", "/admin");
-}
-
 pub fn sitesCreate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     _ = try requireAdmin(app, req, res) orelse return;
     const form = try req.formData();
     const name = form.get("name") orelse "";
     const host = form.get("host") orelse "";
-    const user_header = form.get("user_header") orelse "";
     const user_id_header = form.get("user_id_header") orelse "";
     const user_name_header = form.get("user_name_header") orelse "";
-    if (name.len == 0 or host.len == 0 or user_header.len == 0 or
-        user_id_header.len == 0 or user_name_header.len == 0)
-    {
+    if (name.len == 0 or host.len == 0 or user_id_header.len == 0 or user_name_header.len == 0) {
         res.status = 400;
         res.body = "all site fields required";
         return;
     }
     const conn = try app.pool.acquire(app.io);
     defer conn.release(app.io);
-    _ = db.createSite(conn, name, host, user_header, user_id_header, user_name_header) catch |err| {
+    _ = db.createSite(conn, name, host, user_id_header, user_name_header) catch |err| {
         if (err == error.ConstraintUnique) {
             res.status = 400;
             res.body = "site name or host already exists";
@@ -829,19 +747,16 @@ pub fn sitesUpdate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     };
     const name = form.get("name") orelse "";
     const host = form.get("host") orelse "";
-    const user_header = form.get("user_header") orelse "";
     const user_id_header = form.get("user_id_header") orelse "";
     const user_name_header = form.get("user_name_header") orelse "";
-    if (name.len == 0 or host.len == 0 or user_header.len == 0 or
-        user_id_header.len == 0 or user_name_header.len == 0)
-    {
+    if (name.len == 0 or host.len == 0 or user_id_header.len == 0 or user_name_header.len == 0) {
         res.status = 400;
         res.body = "all site fields required";
         return;
     }
     const conn = try app.pool.acquire(app.io);
     defer conn.release(app.io);
-    db.updateSite(conn, id, name, host, user_header, user_id_header, user_name_header) catch |err| {
+    db.updateSite(conn, id, name, host, user_id_header, user_name_header) catch |err| {
         if (err == error.ConstraintUnique) {
             res.status = 400;
             res.body = "site name or host already exists";
@@ -869,13 +784,6 @@ pub fn sitesDelete(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     try app_mod.reloadAcl(app, conn);
     res.status = 302;
     res.header("Location", "/admin");
-}
-
-fn readUploadFile(req: *httpz.Request) !?[]const u8 {
-    const form = try req.multiFormData();
-    const field = form.get("file") orelse return null;
-    if (field.value.len == 0) return null;
-    return field.value;
 }
 
 pub fn usersCreate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -913,6 +821,7 @@ pub fn usersUpdate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const id_str = form.get("id") orelse "";
     const username = form.get("username") orelse "";
     const plain = form.get("password") orelse "";
+    const discord_id = form.get("discord_id") orelse "";
     const id = std.fmt.parseInt(i64, id_str, 10) catch {
         res.status = 400;
         res.body = "invalid id";
@@ -958,6 +867,15 @@ pub fn usersUpdate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     if (plain.len > 0) {
         try db.updatePassword(conn, res.arena, app.io, id, plain);
     }
+
+    db.setUserDiscordId(conn, id, if (discord_id.len == 0) null else discord_id) catch |err| {
+        if (err == error.ConstraintUnique) {
+            res.status = 400;
+            res.body = "discord id already linked to another user";
+            return;
+        }
+        return err;
+    };
 
     res.status = 302;
     res.header("Location", "/admin");
@@ -1162,6 +1080,10 @@ fn requireAdmin(app: *App, req: *httpz.Request, res: *httpz.Response) !?db.Sessi
         return null;
     };
     if (!std.mem.eql(u8, user.username, app.config.admin_user)) {
+        std.log.warn(
+            "[{d}] 403 admin-only denied: user={s} path={s}",
+            .{ util.unixNow(app.io), user.username, req.url.path },
+        );
         res.status = 403;
         res.body = "admin only";
         return null;

@@ -6,6 +6,7 @@ const App = @import("app.zig").App;
 
 pub fn loginStart(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const client_id = app.config.discord_client_id orelse {
+        std.log.err("[{d}] discord login start requested but not configured", .{util.unixNow(app.io)});
         res.status = 404;
         res.body = "discord login not configured";
         return;
@@ -35,11 +36,13 @@ pub fn loginStart(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
 pub fn loginCallback(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const client_id = app.config.discord_client_id orelse {
+        std.log.err("[{d}] discord callback hit but client_id not configured", .{util.unixNow(app.io)});
         res.status = 404;
         res.body = "discord login not configured";
         return;
     };
     const client_secret = app.config.discord_client_secret orelse {
+        std.log.err("[{d}] discord callback hit but client_secret not configured", .{util.unixNow(app.io)});
         res.status = 404;
         res.body = "discord login not configured";
         return;
@@ -47,12 +50,15 @@ pub fn loginCallback(app: *App, req: *httpz.Request, res: *httpz.Response) !void
 
     const q = try req.query();
     if (q.get("error")) |oauth_err| {
+        std.log.err("[{d}] discord oauth callback returned error: {s}", .{ util.unixNow(app.io), oauth_err });
         return redirectLoginError(res, "", "/", try std.fmt.allocPrint(res.arena, "discord: {s}", .{oauth_err}));
     }
     const code = q.get("code") orelse {
+        std.log.err("[{d}] discord oauth callback missing code", .{util.unixNow(app.io)});
         return redirectLoginError(res, "", "/", "missing discord code");
     };
     const state = q.get("state") orelse {
+        std.log.err("[{d}] discord oauth callback missing state", .{util.unixNow(app.io)});
         return redirectLoginError(res, "", "/", "missing discord state");
     };
 
@@ -65,7 +71,8 @@ pub fn loginCallback(app: *App, req: *httpz.Request, res: *httpz.Response) !void
         _ = it.next(); // nonce
     }
 
-    const discord_user = exchangeAndFetchUser(app, res.arena, client_id, client_secret, code) catch {
+    const discord_user = exchangeAndFetchUser(app, res.arena, client_id, client_secret, code) catch |err| {
+        std.log.err("[{d}] discord exchange/fetch failed: {s}", .{ util.unixNow(app.io), @errorName(err) });
         return redirectLoginError(res, from_site, from_path, "discord login failed");
     };
 
@@ -165,7 +172,13 @@ fn exchangeAndFetchUser(
         },
         .response_writer = &token_aw.writer,
     });
-    if (token_res.status != .ok) return error.DiscordTokenFailed;
+    if (token_res.status != .ok) {
+        std.log.err(
+            "[{d}] discord token exchange failed: status={s} body={s}",
+            .{ util.unixNow(app.io), @tagName(token_res.status), token_aw.written() },
+        );
+        return error.DiscordTokenFailed;
+    }
     const token = try std.json.parseFromSliceLeaky(
         struct { access_token: []const u8 },
         arena,
@@ -183,7 +196,13 @@ fn exchangeAndFetchUser(
         },
         .response_writer = &user_aw.writer,
     });
-    if (user_res.status != .ok) return error.DiscordUserFailed;
+    if (user_res.status != .ok) {
+        std.log.err(
+            "[{d}] discord user fetch failed: status={s} body={s}",
+            .{ util.unixNow(app.io), @tagName(user_res.status), user_aw.written() },
+        );
+        return error.DiscordUserFailed;
+    }
     return try std.json.parseFromSliceLeaky(
         DiscordUser,
         arena,

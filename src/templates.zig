@@ -9,7 +9,7 @@ pub const ZtlApp = struct {
     pub fn partial(self: @This(), _: std.mem.Allocator, _: []const u8, include_key: []const u8) !?ztl.PartialResult {
         _ = self;
         if (std.mem.eql(u8, include_key, "styles")) {
-            return .{ .src = @embedFile("views/styles.ztl") };
+            return .{ .src = "<style>\n" ++ @embedFile("static/app.css") ++ "\n</style>\n" };
         }
         return null;
     }
@@ -102,7 +102,8 @@ test "templates compile and render" {
     var t = try Templates.init(std.testing.allocator);
     defer t.deinit();
     const login = try t.renderLogin(std.testing.allocator, .{
-        .from_site = "jellyfin",
+        .from_site = "1",
+        .site_name = "jellyfin",
         .from_path = "/",
         .err_msg = "",
         .has_from_site = true,
