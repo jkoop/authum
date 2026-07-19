@@ -44,6 +44,7 @@ RUN set -eux; \
     zig build -Doptimize=ReleaseSafe -Dtarget="$zig_target"
 
 FROM scratch
+COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs/
 COPY --from=builder /src/zig-out/bin/authum /authum
 EXPOSE 8080
 # LDAP when AUTHUM_LDAP_LISTEN is set (e.g. 0.0.0.0:3893)
