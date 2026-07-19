@@ -2,3 +2,4 @@
 - make sure HEAD requests are treated like GET requests
 - remove the combined user/id header and 403 debug
 - make the acl editor use selects for users, groups, and sites
+- make the authum logo on 403 page a link to the authum's /admin page
