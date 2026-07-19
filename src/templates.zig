@@ -126,7 +126,7 @@ test "templates compile and render" {
         .site_name = "—",
         .site_id = "—",
         .user_name = "alice",
-        .user_label = "1:alice",
+        .user_label = "1",
     });
     defer std.testing.allocator.free(forbidden);
     try std.testing.expect(std.mem.indexOf(u8, forbidden, "403 Forbidden") != null);

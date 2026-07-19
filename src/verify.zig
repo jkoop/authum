@@ -70,9 +70,8 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     const id_str = try std.fmt.allocPrint(arena, "{d}", .{user.user_id});
-    const remote_user = try std.fmt.allocPrint(arena, "{d}:{s}", .{ user.user_id, user.username });
     res.status = 200;
-    res.header(site.user_header, remote_user);
+    res.header(site.user_header, user.username);
     res.header(site.user_id_header, id_str);
     res.header(site.user_name_header, user.username);
     res.body = "OK";
@@ -179,7 +178,7 @@ fn respondForbidden(
 
     const user_name = if (ctx.user) |u| u.username else "—";
     const user_label = if (ctx.user) |u|
-        try std.fmt.allocPrint(arena, "{d}:{s}", .{ u.user_id, u.username })
+        try std.fmt.allocPrint(arena, "{d}", .{u.user_id})
     else
         "—";
 
