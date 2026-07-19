@@ -246,6 +246,8 @@ pub const Acl = struct {
         self.mutex.lockUncancelable(io);
         defer self.mutex.unlock(io);
 
+        const method_norm = if (std.ascii.eqlIgnoreCase(method, "HEAD")) "GET" else method;
+
         for (self.rules) |*rule| {
             switch (rule.subject) {
                 .any => {},
@@ -266,7 +268,7 @@ pub const Acl = struct {
             }
             const path_ok = rule.path_re.matchScratch(&self.scratch, path) catch false;
             if (!path_ok) continue;
-            if (!std.mem.eql(u8, rule.method, "*") and !std.ascii.eqlIgnoreCase(rule.method, method)) continue;
+            if (!std.mem.eql(u8, rule.method, "*") and !std.ascii.eqlIgnoreCase(rule.method, method_norm)) continue;
             return rule.effect;
         }
         return .deny;
@@ -325,6 +327,7 @@ test "acl first match and default deny" {
     try acl.load(io, &rows);
     const none: []const i64 = &.{};
     try std.testing.expect(acl.decide(io, 12, none, 1, "/api/x", "GET") == .allow);
+    try std.testing.expect(acl.decide(io, 12, none, 1, "/api/x", "HEAD") == .allow);
     try std.testing.expect(acl.decide(io, 12, none, 1, "/admin", "POST") == .deny);
     try std.testing.expect(acl.decide(io, 99, none, 1, "/other", "GET") == .allow);
     try std.testing.expect(acl.decide(io, 12, none, 2, "/", "GET") == .deny);
