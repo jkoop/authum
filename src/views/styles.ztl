@@ -104,6 +104,9 @@ table.kv td code {
 }
 .topnav { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
 .stack > * + * { margin-top: 0.75rem; }
+details { margin-top: 0.75rem; }
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 0.75rem; }
 form.inline { display: inline; }
 @media (max-width: 640px) {
   table, thead, tbody, th, td, tr { display: block; }

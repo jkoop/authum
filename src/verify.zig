@@ -44,7 +44,8 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             .host = host,
             .path = path,
             .method = method,
-            .site_label = "",
+            .site_name = "—",
+            .site_id = "—",
             .user = user,
         });
     };
@@ -62,7 +63,8 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             .host = host,
             .path = path,
             .method = method,
-            .site_label = try std.fmt.allocPrint(arena, "{d} ({s})", .{ site.id, site.name }),
+            .site_name = site.name,
+            .site_id = try std.fmt.allocPrint(arena, "{d}", .{site.id}),
             .user = user,
         });
     }
@@ -132,7 +134,8 @@ fn resolveUser(
             .host = host,
             .path = parsed.path,
             .method = method,
-            .site_label = "",
+            .site_name = "—",
+            .site_id = "—",
             .user = null,
         });
         return null;
@@ -155,7 +158,8 @@ const ForbiddenCtx = struct {
     host: []const u8,
     path: []const u8,
     method: []const u8,
-    site_label: []const u8,
+    site_name: []const u8,
+    site_id: []const u8,
     user: ?db.SessionUser,
 };
 
@@ -173,10 +177,11 @@ fn respondForbidden(
         return;
     }
 
+    const user_name = if (ctx.user) |u| u.username else "—";
     const user_label = if (ctx.user) |u|
         try std.fmt.allocPrint(arena, "{d}:{s}", .{ u.user_id, u.username })
     else
-        "";
+        "—";
 
     res.content_type = .HTML;
     res.body = try app.templates.renderForbidden(arena, .{
@@ -188,10 +193,10 @@ fn respondForbidden(
         .path = ctx.path,
         .method = ctx.method,
         .proto = req.header("x-forwarded-proto") orelse "(missing)",
-        .site_id = ctx.site_label,
+        .site_name = ctx.site_name,
+        .site_id = ctx.site_id,
+        .user_name = user_name,
         .user_label = user_label,
-        .has_site = ctx.site_label.len > 0,
-        .has_user = ctx.user != null,
     });
 }
 

@@ -15,29 +15,34 @@
   <h1>403 Forbidden</h1>
   <div class="panel stack">
     <p class="msg-err"><%= @reason %></p>
-    <p class="lede"><%= @hint %></p>
-    <h2>Request context</h2>
     <table class="kv">
       <tbody>
-        <tr><th>X-Forwarded-Host</th><td><code><%= @fwd_host %></code></td></tr>
-        <tr><th>host (parsed)</th><td><code><%= @host %></code></td></tr>
-        <tr><th>X-Forwarded-Uri</th><td><code><%= @fwd_uri %></code></td></tr>
-        <tr><th>path (parsed)</th><td><code><%= @path %></code></td></tr>
-        <tr><th>X-Forwarded-Method</th><td><code><%= @method %></code></td></tr>
-        <tr><th>X-Forwarded-Proto</th><td><code><%= @proto %></code></td></tr>
-        <% if (@has_site) { -%>
-          <tr><th>site_id</th><td><code><%= @site_id %></code></td></tr>
-        <% } -%>
-        <% if (@has_user) { -%>
-          <tr><th>user</th><td><code><%= @user_label %></code></td></tr>
-        <% } -%>
+        <tr><th>host</th><td><code><%= @host %></code></td></tr>
+        <tr><th>path</th><td><code><%= @path %></code></td></tr>
+        <tr><th>method</th><td><code><%= @method %></code></td></tr>
+        <tr><th>site</th><td><code><%= @site_name %></code></td></tr>
+        <tr><th>user</th><td><code><%= @user_name %></code></td></tr>
       </tbody>
     </table>
-    <ul class="help">
-      <li>Traefik must send <code>X-Forwarded-Host</code>, <code>X-Forwarded-Uri</code>, and preferably <code>X-Forwarded-Method</code> / <code>X-Forwarded-Proto</code> to <code>/auth/verify</code>.</li>
-      <li>Hosts belong in Admin → Sites (no scheme). ACL matches on numeric site id, not hostname.</li>
-      <li>API clients still get a plain-text body; this page is for browsers.</li>
-    </ul>
+    <details>
+      <summary>Details</summary>
+      <p class="lede"><%= @hint %></p>
+      <table class="kv">
+        <tbody>
+          <tr><th>X-Forwarded-Host</th><td><code><%= @fwd_host %></code></td></tr>
+          <tr><th>X-Forwarded-Uri</th><td><code><%= @fwd_uri %></code></td></tr>
+          <tr><th>X-Forwarded-Method</th><td><code><%= @method %></code></td></tr>
+          <tr><th>X-Forwarded-Proto</th><td><code><%= @proto %></code></td></tr>
+          <tr><th>site id</th><td><code><%= @site_id %></code></td></tr>
+          <tr><th>user id</th><td><code><%= @user_label %></code></td></tr>
+        </tbody>
+      </table>
+      <ul class="help">
+        <li>Traefik must send <code>X-Forwarded-Host</code>, <code>X-Forwarded-Uri</code>, and preferably <code>X-Forwarded-Method</code> / <code>X-Forwarded-Proto</code> to <code>/auth/verify</code>.</li>
+        <li>Hosts belong in Admin → Sites (no scheme). ACL matches on numeric site id, not hostname.</li>
+        <li>API clients still get a plain-text body; this page is for browsers.</li>
+      </ul>
+    </details>
   </div>
 </div>
 </body>

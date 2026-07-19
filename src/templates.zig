@@ -123,12 +123,14 @@ test "templates compile and render" {
         .path = "/dashboard",
         .method = "GET",
         .proto = "https",
-        .site_id = "",
-        .user_label = "",
-        .has_site = false,
-        .has_user = false,
+        .site_name = "—",
+        .site_id = "—",
+        .user_name = "alice",
+        .user_label = "1:alice",
     });
     defer std.testing.allocator.free(forbidden);
     try std.testing.expect(std.mem.indexOf(u8, forbidden, "403 Forbidden") != null);
     try std.testing.expect(std.mem.indexOf(u8, forbidden, "app.example.com") != null);
+    try std.testing.expect(std.mem.indexOf(u8, forbidden, "<details>") != null);
+    try std.testing.expect(std.mem.indexOf(u8, forbidden, "alice") != null);
 }
