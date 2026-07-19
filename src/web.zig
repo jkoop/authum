@@ -334,7 +334,7 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     );
 
     const sites_html = try buildSitesHtml(app, res.arena);
-    const acl_html = try buildAclHtml(app, res.arena);
+    const acl_html = try buildAclHtml(app, res.arena, users, groups);
 
     res.content_type = .HTML;
     res.body = try app.templates.renderAdmin(res.arena, .{
@@ -403,23 +403,108 @@ fn buildSitesHtml(app: *App, arena: std.mem.Allocator) ![]u8 {
     return try out.toOwnedSlice(arena);
 }
 
-fn buildAclHtml(app: *App, arena: std.mem.Allocator) ![]u8 {
+const AclSiteOpt = struct {
+    id: i64,
+    label: []const u8, // already html-escaped "name (host)"
+};
+
+fn buildSubjectSelect(arena: std.mem.Allocator, users: []const db.User, groups: []const db.Group, selected: ?acl_mod.Subject) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(arena);
+    try out.appendSlice(arena, "<select name=\"user\" required>");
+    const any_sel = if (selected) |s| (s == .any) else true;
+    try out.appendSlice(arena, try std.fmt.allocPrint(arena,
+        \\<option value="*"{s}>* anyone</option>
+    , .{if (any_sel) " selected" else ""}));
+    for (users) |u| {
+        const name = try util.htmlEscape(arena, u.username);
+        const sel = if (selected) |s| switch (s) {
+            .user_id => |id| id == u.id,
+            else => false,
+        } else false;
+        try out.appendSlice(arena, try std.fmt.allocPrint(arena,
+            \\<option value="#{d}"{s}>#{d} {s}</option>
+        , .{ u.id, if (sel) " selected" else "", u.id, name }));
+    }
+    for (groups) |g| {
+        const name = try util.htmlEscape(arena, g.name);
+        const sel = if (selected) |s| switch (s) {
+            .group_id => |id| id == g.id,
+            else => false,
+        } else false;
+        try out.appendSlice(arena, try std.fmt.allocPrint(arena,
+            \\<option value="@{d}"{s}>@{d} {s}</option>
+        , .{ g.id, if (sel) " selected" else "", g.id, name }));
+    }
+    try out.appendSlice(arena, "</select>");
+    return try out.toOwnedSlice(arena);
+}
+
+fn buildSiteSelect(arena: std.mem.Allocator, sites: []const AclSiteOpt, selected: ?i64) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(arena);
+    try out.appendSlice(arena, "<select name=\"site_id\" required>");
+    try out.appendSlice(arena, try std.fmt.allocPrint(arena,
+        \\<option value="*"{s}>* any site</option>
+    , .{if (selected == null) " selected" else ""}));
+    for (sites) |s| {
+        const sel = if (selected) |sid| sid == s.id else false;
+        try out.appendSlice(arena, try std.fmt.allocPrint(arena,
+            \\<option value="{d}"{s}>{d} {s}</option>
+        , .{ s.id, if (sel) " selected" else "", s.id, s.label }));
+    }
+    try out.appendSlice(arena, "</select>");
+    return try out.toOwnedSlice(arena);
+}
+
+fn buildAclHtml(app: *App, arena: std.mem.Allocator, users: []const db.User, groups: []const db.Group) ![]u8 {
+    var site_opts: std.ArrayList(AclSiteOpt) = .empty;
+    errdefer site_opts.deinit(arena);
+    {
+        app.sites.mutex.lockUncancelable(app.io);
+        defer app.sites.mutex.unlock(app.io);
+        for (app.sites.sites) |s| {
+            const name = try util.htmlEscape(arena, s.name);
+            const host = try util.htmlEscape(arena, s.host);
+            const label = try std.fmt.allocPrint(arena, "{s} ({s})", .{ name, host });
+            try site_opts.append(arena, .{ .id = s.id, .label = label });
+        }
+    }
+
+    const RuleSnap = struct {
+        id: i64,
+        subject: acl_mod.Subject,
+        site_id: ?i64,
+        path: []const u8,
+        method: []const u8,
+        effect: acl_mod.Effect,
+    };
+    var snaps: std.ArrayList(RuleSnap) = .empty;
+    errdefer snaps.deinit(arena);
+    {
+        app.acl.mutex.lockUncancelable(app.io);
+        defer app.acl.mutex.unlock(app.io);
+        for (app.acl.rules) |rule| {
+            try snaps.append(arena, .{
+                .id = rule.id,
+                .subject = rule.subject,
+                .site_id = rule.site_id,
+                .path = try util.htmlEscape(arena, rule.path_pattern),
+                .method = try util.htmlEscape(arena, rule.method),
+                .effect = rule.effect,
+            });
+        }
+    }
+
     var out: std.ArrayList(u8) = .empty;
     errdefer out.deinit(arena);
     try out.appendSlice(arena,
         \\<table>
         \\<tr><th></th><th>User</th><th>Site</th><th>Path</th><th>Method</th><th>Effect</th><th></th></tr>
     );
-    app.acl.mutex.lockUncancelable(app.io);
-    defer app.acl.mutex.unlock(app.io);
-    for (app.acl.rules) |rule| {
-        const user = try acl_mod.formatSubject(arena, rule.subject);
-        const site = if (rule.site_id) |sid|
-            try std.fmt.allocPrint(arena, "{d}", .{sid})
-        else
-            "*";
-        const path = try util.htmlEscape(arena, rule.path_pattern);
-        const method = try util.htmlEscape(arena, rule.method);
+    for (snaps.items) |rule| {
+        const user_sel = try buildSubjectSelect(arena, users, groups, rule.subject);
+        const site_sel = try buildSiteSelect(arena, site_opts.items, rule.site_id);
         const effect = @tagName(rule.effect);
         const row = try std.fmt.allocPrint(arena,
             \\<tr>
@@ -438,8 +523,8 @@ fn buildAclHtml(app: *App, arena: std.mem.Allocator) ![]u8 {
             \\<td colspan="5">
             \\<form method="POST" action="/admin/acl/update" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
             \\<input type="hidden" name="id" value="{d}">
-            \\<input name="user" value="{s}" placeholder="* | #id | @id" required size="8">
-            \\<input name="site_id" value="{s}" placeholder="* or site id" required size="6">
+            \\{s}
+            \\{s}
             \\<input name="path" value="{s}" placeholder="path regex" required>
             \\<input name="method" value="{s}" placeholder="method or *" required size="6">
             \\<select name="effect">
@@ -460,23 +545,25 @@ fn buildAclHtml(app: *App, arena: std.mem.Allocator) ![]u8 {
             rule.id,
             rule.id,
             rule.id,
-            try util.htmlEscape(arena, user),
-            site,
-            path,
-            method,
+            user_sel,
+            site_sel,
+            rule.path,
+            rule.method,
             if (effect[0] == 'a') " selected" else "",
             if (effect[0] == 'd') " selected" else "",
             rule.id,
         });
         try out.appendSlice(arena, row);
     }
-    try out.appendSlice(arena,
+    const blank_user = try buildSubjectSelect(arena, users, groups, null);
+    const blank_site = try buildSiteSelect(arena, site_opts.items, null);
+    try out.appendSlice(arena, try std.fmt.allocPrint(arena,
         \\<tr>
         \\<td>+</td>
         \\<td colspan="6">
         \\<form method="POST" action="/admin/acl" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
-        \\<input name="user" placeholder="* | #id | @id" required size="8">
-        \\<input name="site_id" placeholder="* or site id" required size="6">
+        \\{s}
+        \\{s}
         \\<input name="path" placeholder="^/" required>
         \\<input name="method" placeholder="*" value="*" required size="6">
         \\<select name="effect"><option value="allow">allow</option><option value="deny">deny</option></select>
@@ -485,7 +572,7 @@ fn buildAclHtml(app: *App, arena: std.mem.Allocator) ![]u8 {
         \\</td>
         \\</tr>
         \\</table>
-    );
+    , .{ blank_user, blank_site }));
     return try out.toOwnedSlice(arena);
 }
 

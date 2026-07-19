@@ -22,8 +22,8 @@
     <h2>ACL</h2>
     <p class="lede">First matching row wins; no match means deny. Edit rows below, or use TSV as backup import/export.</p>
     <ul class="help">
-      <li><code>user</code>: <code>*</code> (anyone), <code>#id</code> (user id), or <code>@id</code> (group id). Renames do not break rules.</li>
-      <li><code>site_id</code>: numeric Sites id or <code>*</code> — not the hostname or site name.</li>
+      <li><code>user</code>: pick anyone, a user, or a group (TSV still uses <code>*</code>, <code>#id</code>, <code>@id</code>). Renames do not break rules.</li>
+      <li><code>site</code>: pick any site or one Sites row (TSV uses numeric id or <code>*</code>).</li>
       <li><code>path</code>: RE2-style regex against the request path (e.g. <code>^/</code>, <code>(?i)\.pdf$</code>).</li>
       <li><code>method</code>: exact HTTP method or <code>*</code>.</li>
     </ul>
