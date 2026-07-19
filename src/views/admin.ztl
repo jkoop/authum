@@ -44,11 +44,11 @@
     </form>
 
     <h2>Users</h2>
-    <p class="lede">Usernames are <code>[A-Za-z0-9_]</code> only. The env admin user cannot be renamed, deleted, or disabled; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup. Discord sign-ups start <strong>disabled</strong> until you enable them here.</p>
+    <p class="lede">Usernames are <code>[A-Za-z0-9_]</code> only and cannot be only digits. The env admin user cannot be renamed, deleted, or disabled; its password is reset from <code>AUTHUM_ADMIN_PASSWORD</code> on every startup. Discord sign-ups start <strong>disabled</strong> until you enable them here.</p>
     <%= safe @users_html %>
 
     <h2>Groups</h2>
-    <p class="lede">Put people in a group, then use <code>@id</code> in the ACL (group numeric id). Renaming a group does not break ACL rules. Deleting a group removes its ACL rules via foreign key cascade.</p>
+    <p class="lede">Group names use the same rules as usernames (<code>[A-Za-z0-9_]</code>, not only digits). Put people in a group, then use <code>@id</code> in the ACL (group numeric id). Renaming a group does not break ACL rules. Deleting a group removes its ACL rules via foreign key cascade.</p>
     <%= safe @groups_html %>
   </div>
 </div>

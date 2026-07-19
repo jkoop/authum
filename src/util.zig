@@ -2,10 +2,12 @@ const std = @import("std");
 
 pub fn validUsername(name: []const u8) bool {
     if (name.len == 0) return false;
+    var all_digits = true;
     for (name) |c| {
         if (!(std.ascii.isAlphanumeric(c) or c == '_')) return false;
+        if (!std.ascii.isDigit(c)) all_digits = false;
     }
-    return true;
+    return !all_digits;
 }
 
 pub fn unixNow(io: std.Io) i64 {
@@ -178,7 +180,11 @@ test "queryGet" {
 test "validUsername" {
     try std.testing.expect(validUsername("alice"));
     try std.testing.expect(validUsername("Bob_42"));
+    try std.testing.expect(validUsername("a1"));
+    try std.testing.expect(validUsername("_1"));
     try std.testing.expect(!validUsername(""));
+    try std.testing.expect(!validUsername("123"));
+    try std.testing.expect(!validUsername("007"));
     try std.testing.expect(!validUsername("alice-bob"));
     try std.testing.expect(!validUsername("a b"));
 }

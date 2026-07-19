@@ -202,7 +202,10 @@ fn uniqueUsername(conn: anytype, arena: std.mem.Allocator, discord_name: []const
     for (discord_name) |c| {
         if (std.ascii.isAlphanumeric(c) or c == '_') try buf.append(arena, c);
     }
-    if (buf.items.len == 0) try buf.appendSlice(arena, "discord");
+    if (buf.items.len == 0 or !util.validUsername(buf.items)) {
+        buf.clearRetainingCapacity();
+        try buf.appendSlice(arena, "discord");
+    }
     if (buf.items.len > 32) buf.items.len = 32;
 
     const base = try arena.dupe(u8, buf.items);
