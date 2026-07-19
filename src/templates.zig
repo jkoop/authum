@@ -21,6 +21,7 @@ pub const Templates = struct {
     account: ztl.Template(ZtlApp),
     admin: ztl.Template(ZtlApp),
     pending: ztl.Template(ZtlApp),
+    forbidden: ztl.Template(ZtlApp),
 
     pub fn init(allocator: std.mem.Allocator) !Templates {
         var self: Templates = .{
@@ -28,6 +29,7 @@ pub const Templates = struct {
             .account = ztl.Template(ZtlApp).init(allocator, .{}),
             .admin = ztl.Template(ZtlApp).init(allocator, .{}),
             .pending = ztl.Template(ZtlApp).init(allocator, .{}),
+            .forbidden = ztl.Template(ZtlApp).init(allocator, .{}),
         };
         errdefer self.deinit();
 
@@ -48,6 +50,10 @@ pub const Templates = struct {
             std.log.err("pending template: {s}", .{report.message});
             return error.TemplateCompile;
         };
+        self.forbidden.compile(@embedFile("views/forbidden.ztl"), .{ .error_report = &report }) catch {
+            std.log.err("forbidden template: {s}", .{report.message});
+            return error.TemplateCompile;
+        };
         return self;
     }
 
@@ -56,6 +62,7 @@ pub const Templates = struct {
         self.account.deinit();
         self.admin.deinit();
         self.pending.deinit();
+        self.forbidden.deinit();
     }
 
     pub fn renderLogin(self: *Templates, arena: std.mem.Allocator, args: anytype) ![]u8 {
@@ -72,6 +79,10 @@ pub const Templates = struct {
 
     pub fn renderPending(self: *Templates, arena: std.mem.Allocator, args: anytype) ![]u8 {
         return render(&self.pending, arena, args);
+    }
+
+    pub fn renderForbidden(self: *Templates, arena: std.mem.Allocator, args: anytype) ![]u8 {
+        return render(&self.forbidden, arena, args);
     }
 
     fn render(tmpl: anytype, arena: std.mem.Allocator, args: anytype) ![]u8 {
@@ -102,4 +113,22 @@ test "templates compile and render" {
     defer std.testing.allocator.free(login);
     try std.testing.expect(std.mem.indexOf(u8, login, "authum") != null);
     try std.testing.expect(std.mem.indexOf(u8, login, "jellyfin") != null);
+
+    const forbidden = try t.renderForbidden(std.testing.allocator, .{
+        .reason = "unknown site",
+        .hint = "Host is not in the sites registry.",
+        .fwd_host = "app.example.com",
+        .host = "app.example.com",
+        .fwd_uri = "/dashboard",
+        .path = "/dashboard",
+        .method = "GET",
+        .proto = "https",
+        .site_id = "",
+        .user_label = "",
+        .has_site = false,
+        .has_user = false,
+    });
+    defer std.testing.allocator.free(forbidden);
+    try std.testing.expect(std.mem.indexOf(u8, forbidden, "403 Forbidden") != null);
+    try std.testing.expect(std.mem.indexOf(u8, forbidden, "app.example.com") != null);
 }

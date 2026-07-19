@@ -38,9 +38,15 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const user = try resolveUser(app, req, res, arena, browser) orelse return;
 
     const site = (try app.sites.byHost(app.io, arena, host)) orelse {
-        res.status = 403;
-        res.body = "unknown site";
-        return;
+        return respondForbidden(app, req, res, arena, browser, .{
+            .reason = "unknown site",
+            .hint = "This host is not in the sites registry. Add it to the sites TSV (hostname only, no scheme) and ensure Traefik forwards the correct X-Forwarded-Host.",
+            .host = host,
+            .path = path,
+            .method = method,
+            .site_id = "",
+            .user = user,
+        });
     };
 
     const groups = blk: {
@@ -50,9 +56,15 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     };
     const effect = app.acl.decide(app.io, user.user_id, groups, site.site_id, path, method);
     if (effect == .deny) {
-        res.status = 403;
-        res.body = "forbidden";
-        return;
+        return respondForbidden(app, req, res, arena, browser, .{
+            .reason = "forbidden",
+            .hint = "You are authenticated, but ACL denied this request. Check site_id, path regex, method, and user/group columns in the ACL TSV.",
+            .host = host,
+            .path = path,
+            .method = method,
+            .site_id = site.site_id,
+            .user = user,
+        });
     }
 
     const id_str = try std.fmt.allocPrint(arena, "{d}", .{user.user_id});
@@ -112,9 +124,17 @@ fn resolveUser(
     const uri = req.header("x-forwarded-uri") orelse "/";
     const host = util.hostWithoutPort(host_hdr);
     const parsed = util.splitPathQuery(uri);
+    const method = req.header("x-forwarded-method") orelse @tagName(req.method);
     const site = (try app.sites.byHost(app.io, arena, host)) orelse {
-        res.status = 403;
-        res.body = "unknown site";
+        try respondForbidden(app, req, res, arena, true, .{
+            .reason = "unknown site",
+            .hint = "This host is not in the sites registry. Add it to the sites TSV (hostname only, no scheme) and ensure Traefik forwards the correct X-Forwarded-Host.",
+            .host = host,
+            .path = parsed.path,
+            .method = method,
+            .site_id = "",
+            .user = null,
+        });
         return null;
     };
     const from_path = try util.urlEncode(arena, parsed.path);
@@ -127,6 +147,52 @@ fn resolveUser(
     res.header("Location", loc);
     res.body = "redirecting to login";
     return null;
+}
+
+const ForbiddenCtx = struct {
+    reason: []const u8,
+    hint: []const u8,
+    host: []const u8,
+    path: []const u8,
+    method: []const u8,
+    site_id: []const u8,
+    user: ?db.SessionUser,
+};
+
+fn respondForbidden(
+    app: *App,
+    req: *httpz.Request,
+    res: *httpz.Response,
+    arena: std.mem.Allocator,
+    browser: bool,
+    ctx: ForbiddenCtx,
+) !void {
+    res.status = 403;
+    if (!browser) {
+        res.body = ctx.reason;
+        return;
+    }
+
+    const user_label = if (ctx.user) |u|
+        try std.fmt.allocPrint(arena, "{d}:{s}", .{ u.user_id, u.username })
+    else
+        "";
+
+    res.content_type = .HTML;
+    res.body = try app.templates.renderForbidden(arena, .{
+        .reason = ctx.reason,
+        .hint = ctx.hint,
+        .fwd_host = req.header("x-forwarded-host") orelse "(missing)",
+        .host = ctx.host,
+        .fwd_uri = req.header("x-forwarded-uri") orelse "(missing)",
+        .path = ctx.path,
+        .method = ctx.method,
+        .proto = req.header("x-forwarded-proto") orelse "(missing)",
+        .site_id = ctx.site_id,
+        .user_label = user_label,
+        .has_site = ctx.site_id.len > 0,
+        .has_user = ctx.user != null,
+    });
 }
 
 fn handleAuthumLogin(

@@ -83,6 +83,25 @@ table {
 th, td { border-bottom: 1px solid var(--line); padding: 0.45rem 0.55rem; text-align: left; vertical-align: top; }
 th { background: #eef3f6; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 ul.help { color: var(--muted); padding-left: 1.2rem; }
+table.kv { margin: 0.5rem 0 0; }
+table.kv th {
+  width: 11rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: #f7fafc;
+  white-space: nowrap;
+}
+table.kv td code {
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-all;
+  background: transparent;
+  padding: 0;
+}
 .topnav { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
 .stack > * + * { margin-top: 0.75rem; }
 form.inline { display: inline; }
