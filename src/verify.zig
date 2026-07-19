@@ -181,6 +181,11 @@ fn respondForbidden(
         try std.fmt.allocPrint(arena, "{d}", .{u.user_id})
     else
         "—";
+    const admin_href = try std.fmt.allocPrint(
+        arena,
+        "{s}://{s}/admin",
+        .{ util.schemeFromProto(req.header("x-forwarded-proto")), app.config.domain },
+    );
 
     res.content_type = .HTML;
     res.body = try app.templates.renderForbidden(arena, .{
@@ -196,6 +201,7 @@ fn respondForbidden(
         .site_id = ctx.site_id,
         .user_name = user_name,
         .user_label = user_label,
+        .admin_href = admin_href,
     });
 }
 

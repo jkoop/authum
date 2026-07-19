@@ -127,10 +127,12 @@ test "templates compile and render" {
         .site_id = "—",
         .user_name = "alice",
         .user_label = "1",
+        .admin_href = "https://auth.example.com/admin",
     });
     defer std.testing.allocator.free(forbidden);
     try std.testing.expect(std.mem.indexOf(u8, forbidden, "403 Forbidden") != null);
     try std.testing.expect(std.mem.indexOf(u8, forbidden, "app.example.com") != null);
     try std.testing.expect(std.mem.indexOf(u8, forbidden, "<details>") != null);
     try std.testing.expect(std.mem.indexOf(u8, forbidden, "alice") != null);
+    try std.testing.expect(std.mem.indexOf(u8, forbidden, "https://auth.example.com/admin") != null);
 }

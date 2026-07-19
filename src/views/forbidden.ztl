@@ -11,7 +11,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">authum</div>
+  <div class="brand"><a href="<%= @admin_href %>">authum</a></div>
   <h1>403 Forbidden</h1>
   <div class="panel stack">
     <p class="msg-err"><%= @reason %></p>
