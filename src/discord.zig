@@ -73,6 +73,19 @@ pub fn loginCallback(app: *App, req: *httpz.Request, res: *httpz.Response) !void
 
     const discord_user = exchangeAndFetchUser(app, res.arena, client_id, client_secret, code) catch |err| {
         std.log.err("[{d}] discord exchange/fetch failed: {s}", .{ util.unixNow(app.io), @errorName(err) });
+        if (err == error.TlsInitializationFailed) {
+            const cb = redirectUri(app, res.arena) catch "(redirect_uri alloc failed)";
+            std.log.err(
+                "[{d}] discord TLS initialization failed; callback_redirect_uri={s}; token_url={s}; user_url={s}; verify system clock and CA certificates (e.g. ca-certificates package)",
+                .{
+                    util.unixNow(app.io),
+                    cb,
+                    "https://discord.com/api/oauth2/token",
+                    "https://discord.com/api/users/@me",
+                },
+            );
+            return redirectLoginError(res, from_site, from_path, "discord tls initialization failed");
+        }
         return redirectLoginError(res, from_site, from_path, "discord login failed");
     };
 
@@ -147,6 +160,29 @@ fn exchangeAndFetchUser(
     client_secret: []const u8,
     code: []const u8,
 ) !DiscordUser {
+    // Retry once for transient TLS initialization failures.
+    var attempt: u8 = 0;
+    while (attempt < 2) : (attempt += 1) {
+        return exchangeAndFetchUserOnce(app, arena, client_id, client_secret, code) catch |err| {
+            if (err == error.TlsInitializationFailed and attempt == 0) {
+                std.log.warn("[{d}] discord TLS init failed, retrying once", .{util.unixNow(app.io)});
+                continue;
+            }
+            return err;
+        };
+    }
+    return error.TlsInitializationFailed;
+}
+
+fn exchangeAndFetchUserOnce(
+    app: *App,
+    arena: std.mem.Allocator,
+    client_id: []const u8,
+    client_secret: []const u8,
+    code: []const u8,
+) !DiscordUser {
+    const token_url = "https://discord.com/api/oauth2/token";
+    const user_url = "https://discord.com/api/users/@me";
     var client: std.http.Client = .{ .allocator = app.allocator, .io = app.io };
     defer client.deinit();
 
@@ -164,7 +200,7 @@ fn exchangeAndFetchUser(
 
     var token_aw: std.Io.Writer.Allocating = .init(arena);
     const token_res = try client.fetch(.{
-        .location = .{ .url = "https://discord.com/api/oauth2/token" },
+        .location = .{ .url = token_url },
         .method = .POST,
         .payload = body,
         .headers = .{
@@ -189,7 +225,7 @@ fn exchangeAndFetchUser(
     var user_aw: std.Io.Writer.Allocating = .init(arena);
     const auth_header = try std.fmt.allocPrint(arena, "Bearer {s}", .{token.access_token});
     const user_res = try client.fetch(.{
-        .location = .{ .url = "https://discord.com/api/users/@me" },
+        .location = .{ .url = user_url },
         .method = .GET,
         .extra_headers = &.{
             .{ .name = "Authorization", .value = auth_header },
