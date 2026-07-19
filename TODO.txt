@@ -1,4 +1,4 @@
 - make usernames and group names not be only digits
-- make all tables in the db use numeric foreign keys; dont make me update the acl when i rename stuff
-- make the acl and sites tables be editable tables as well as tsv; make tsv demoted to more of a backup strategy
+- [done] make all tables in the db use numeric foreign keys; dont make me update the acl when i rename stuff
+- [done] make the acl and sites tables be editable tables as well as tsv; make tsv demoted to more of a backup strategy
 - male sure HEAD requests are treated like GET requests

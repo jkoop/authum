@@ -3,7 +3,9 @@ const httpz = @import("httpz");
 const password = @import("password.zig");
 const db = @import("db.zig");
 const util = @import("util.zig");
-const App = @import("app.zig").App;
+const acl_mod = @import("acl.zig");
+const app_mod = @import("app.zig");
+const App = app_mod.App;
 
 pub fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     if (try currentUser(app, req, res.arena)) |user| {
@@ -126,12 +128,15 @@ pub fn loginPost(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    const site = (try app.sites.byId(app.io, res.arena, from_site)) orelse {
+    const site_id = std.fmt.parseInt(i64, from_site, 10) catch {
+        return redirectLoginError(res, from_site, from_path, "unknown site");
+    };
+    const site = (try app.sites.byId(app.io, res.arena, site_id)) orelse {
         return redirectLoginError(res, from_site, from_path, "unknown site");
     };
 
     const path = if (from_path.len == 0) "/" else from_path;
-    const ticket = try db.createTicket(conn, res.arena, app.io, session_id, site.site_id, path);
+    const ticket = try db.createTicket(conn, res.arena, app.io, session_id, site.id, path);
     const path_enc = try util.urlEncode(res.arena, path);
     const scheme = util.schemeFromProto(req.header("x-forwarded-proto"));
     const loc = try std.fmt.allocPrint(
@@ -328,21 +333,165 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         \\</table>
     );
 
-    const acl_table = try app.acl.htmlTable(app.io, res.arena);
-    const sites_table = try app.sites.htmlTable(app.io, res.arena);
+    const sites_html = try buildSitesHtml(app, res.arena);
+    const acl_html = try buildAclHtml(app, res.arena);
 
     res.content_type = .HTML;
     res.body = try app.templates.renderAdmin(res.arena, .{
-        .acl_table = acl_table,
-        .sites_table = sites_table,
+        .acl_table = acl_html,
+        .sites_table = sites_html,
         .users_html = rows.items,
         .groups_html = groups_html.items,
     });
 }
 
+fn buildSitesHtml(app: *App, arena: std.mem.Allocator) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(arena);
+    try out.appendSlice(arena,
+        \\<table>
+        \\<tr><th>ID</th><th>Name</th><th>Host</th><th>Headers</th><th></th></tr>
+    );
+    app.sites.mutex.lockUncancelable(app.io);
+    defer app.sites.mutex.unlock(app.io);
+    for (app.sites.sites) |s| {
+        const name = try util.htmlEscape(arena, s.name);
+        const host = try util.htmlEscape(arena, s.host);
+        const uh = try util.htmlEscape(arena, s.user_header);
+        const uidh = try util.htmlEscape(arena, s.user_id_header);
+        const unh = try util.htmlEscape(arena, s.user_name_header);
+        const row = try std.fmt.allocPrint(arena,
+            \\<tr>
+            \\<td>{d}</td>
+            \\<td colspan="3">
+            \\<form method="POST" action="/admin/sites/update" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
+            \\<input type="hidden" name="id" value="{d}">
+            \\<input name="name" value="{s}" placeholder="name" required>
+            \\<input name="host" value="{s}" placeholder="host" required>
+            \\<input name="user_header" value="{s}" placeholder="user_header" required>
+            \\<input name="user_id_header" value="{s}" placeholder="user_id_header" required>
+            \\<input name="user_name_header" value="{s}" placeholder="user_name_header" required>
+            \\<button type="submit">Save</button>
+            \\</form>
+            \\</td>
+            \\<td>
+            \\<form method="POST" action="/admin/sites/delete" style="display:inline" onsubmit="return confirm('Delete site? Site-scoped ACL rules are removed.');">
+            \\<input type="hidden" name="id" value="{d}">
+            \\<button type="submit">Delete</button>
+            \\</form>
+            \\</td>
+            \\</tr>
+        , .{ s.id, s.id, name, host, uh, uidh, unh, s.id });
+        try out.appendSlice(arena, row);
+    }
+    try out.appendSlice(arena,
+        \\<tr>
+        \\<td>+</td>
+        \\<td colspan="4">
+        \\<form method="POST" action="/admin/sites" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
+        \\<input name="name" placeholder="name" required>
+        \\<input name="host" placeholder="host" required>
+        \\<input name="user_header" placeholder="user_header" value="Remote-User" required>
+        \\<input name="user_id_header" placeholder="user_id_header" value="Remote-User-Id" required>
+        \\<input name="user_name_header" placeholder="user_name_header" value="Remote-User-Name" required>
+        \\<button type="submit">Add site</button>
+        \\</form>
+        \\</td>
+        \\</tr>
+        \\</table>
+    );
+    return try out.toOwnedSlice(arena);
+}
+
+fn buildAclHtml(app: *App, arena: std.mem.Allocator) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(arena);
+    try out.appendSlice(arena,
+        \\<table>
+        \\<tr><th></th><th>User</th><th>Site</th><th>Path</th><th>Method</th><th>Effect</th><th></th></tr>
+    );
+    app.acl.mutex.lockUncancelable(app.io);
+    defer app.acl.mutex.unlock(app.io);
+    for (app.acl.rules) |rule| {
+        const user = try acl_mod.formatSubject(arena, rule.subject);
+        const site = if (rule.site_id) |sid|
+            try std.fmt.allocPrint(arena, "{d}", .{sid})
+        else
+            "*";
+        const path = try util.htmlEscape(arena, rule.path_pattern);
+        const method = try util.htmlEscape(arena, rule.method);
+        const effect = @tagName(rule.effect);
+        const row = try std.fmt.allocPrint(arena,
+            \\<tr>
+            \\<td>
+            \\<form method="POST" action="/admin/acl/move" style="display:inline">
+            \\<input type="hidden" name="id" value="{d}">
+            \\<input type="hidden" name="dir" value="up">
+            \\<button type="submit" title="Move up">↑</button>
+            \\</form>
+            \\<form method="POST" action="/admin/acl/move" style="display:inline">
+            \\<input type="hidden" name="id" value="{d}">
+            \\<input type="hidden" name="dir" value="down">
+            \\<button type="submit" title="Move down">↓</button>
+            \\</form>
+            \\</td>
+            \\<td colspan="5">
+            \\<form method="POST" action="/admin/acl/update" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
+            \\<input type="hidden" name="id" value="{d}">
+            \\<input name="user" value="{s}" placeholder="* | #id | @id" required size="8">
+            \\<input name="site_id" value="{s}" placeholder="* or site id" required size="6">
+            \\<input name="path" value="{s}" placeholder="path regex" required>
+            \\<input name="method" value="{s}" placeholder="method or *" required size="6">
+            \\<select name="effect">
+            \\<option value="allow"{s}>allow</option>
+            \\<option value="deny"{s}>deny</option>
+            \\</select>
+            \\<button type="submit">Save</button>
+            \\</form>
+            \\</td>
+            \\<td>
+            \\<form method="POST" action="/admin/acl/delete" style="display:inline" onsubmit="return confirm('Delete rule?');">
+            \\<input type="hidden" name="id" value="{d}">
+            \\<button type="submit">Delete</button>
+            \\</form>
+            \\</td>
+            \\</tr>
+        , .{
+            rule.id,
+            rule.id,
+            rule.id,
+            try util.htmlEscape(arena, user),
+            site,
+            path,
+            method,
+            if (effect[0] == 'a') " selected" else "",
+            if (effect[0] == 'd') " selected" else "",
+            rule.id,
+        });
+        try out.appendSlice(arena, row);
+    }
+    try out.appendSlice(arena,
+        \\<tr>
+        \\<td>+</td>
+        \\<td colspan="6">
+        \\<form method="POST" action="/admin/acl" style="display:flex;flex-wrap:wrap;gap:0.35em;align-items:center">
+        \\<input name="user" placeholder="* | #id | @id" required size="8">
+        \\<input name="site_id" placeholder="* or site id" required size="6">
+        \\<input name="path" placeholder="^/" required>
+        \\<input name="method" placeholder="*" value="*" required size="6">
+        \\<select name="effect"><option value="allow">allow</option><option value="deny">deny</option></select>
+        \\<button type="submit">Add rule</button>
+        \\</form>
+        \\</td>
+        \\</tr>
+        \\</table>
+    );
+    return try out.toOwnedSlice(arena);
+}
+
 pub fn aclDownload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     _ = try requireAdmin(app, req, res) orelse return;
-    const body = try app.acl.snapshotSource(app.io, res.arena);
+    const body = try app.acl.exportTsv(app.io, res.arena);
     res.header("Content-Type", "text/tab-separated-values; charset=utf-8");
     res.header("Content-Disposition", "attachment; filename=\"acl.tsv\"");
     res.body = body;
@@ -355,8 +504,14 @@ pub fn aclUpload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.body = "missing file";
         return;
     };
-    switch (try app.acl.loadTsv(app.io, body, res.arena)) {
-        .ok => {},
+    const parsed = try acl_mod.Acl.parseTsv(body, res.arena);
+    switch (parsed) {
+        .ok => |rows| {
+            const conn = try app.pool.acquire(app.io);
+            defer conn.release(app.io);
+            try db.replaceAclRules(conn, rows);
+            try app_mod.reloadAcl(app, conn);
+        },
         .invalid => |msg| {
             res.status = 400;
             res.content_type = .HTML;
@@ -369,16 +524,147 @@ pub fn aclUpload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             return;
         },
     }
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+fn parseAclForm(form: anytype, arena: std.mem.Allocator) !struct {
+    subject: acl_mod.Subject,
+    site_id: ?i64,
+    path: []const u8,
+    method: []const u8,
+    effect: acl_mod.Effect,
+} {
+    const user = form.get("user") orelse "";
+    const site_col = form.get("site_id") orelse "";
+    const path = form.get("path") orelse "";
+    const method = form.get("method") orelse "";
+    const effect_col = form.get("effect") orelse "";
+
+    const subject = acl_mod.parseSubject(user) catch {
+        return error.BadSubject;
+    };
+    if (path.len == 0 or method.len == 0) return error.BadFields;
+    const site_id: ?i64 = if (std.mem.eql(u8, site_col, "*"))
+        null
+    else
+        std.fmt.parseInt(i64, site_col, 10) catch return error.BadSite;
+    const effect: acl_mod.Effect = if (std.mem.eql(u8, effect_col, "allow"))
+        .allow
+    else if (std.mem.eql(u8, effect_col, "deny"))
+        .deny
+    else
+        return error.BadEffect;
+
+    // Validate regex
+    var re = @import("regex").compile(arena, path) catch return error.BadRegex;
+    re.deinit();
+
+    return .{
+        .subject = subject,
+        .site_id = site_id,
+        .path = path,
+        .method = method,
+        .effect = effect,
+    };
+}
+
+pub fn aclCreate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const fields = parseAclForm(form, res.arena) catch {
+        res.status = 400;
+        res.body = "invalid ACL fields (user: *|#id|@id; site: *|id; path regex; method; allow|deny)";
+        return;
+    };
     const conn = try app.pool.acquire(app.io);
     defer conn.release(app.io);
-    try db.saveAclDocument(conn, body);
+    _ = db.createAclRule(conn, fields.subject, fields.site_id, fields.path, fields.method, fields.effect) catch |err| {
+        if (err == error.ConstraintForeignKey) {
+            res.status = 400;
+            res.body = "unknown user, group, or site id";
+            return;
+        }
+        return err;
+    };
+    try app_mod.reloadAcl(app, conn);
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn aclUpdate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const id = std.fmt.parseInt(i64, form.get("id") orelse "", 10) catch {
+        res.status = 400;
+        res.body = "invalid id";
+        return;
+    };
+    const fields = parseAclForm(form, res.arena) catch {
+        res.status = 400;
+        res.body = "invalid ACL fields";
+        return;
+    };
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    db.updateAclRule(conn, id, fields.subject, fields.site_id, fields.path, fields.method, fields.effect) catch |err| {
+        if (err == error.ConstraintForeignKey) {
+            res.status = 400;
+            res.body = "unknown user, group, or site id";
+            return;
+        }
+        return err;
+    };
+    try app_mod.reloadAcl(app, conn);
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn aclDelete(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const id = std.fmt.parseInt(i64, form.get("id") orelse "", 10) catch {
+        res.status = 400;
+        res.body = "invalid id";
+        return;
+    };
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    try db.deleteAclRule(conn, id);
+    try app_mod.reloadAcl(app, conn);
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn aclMove(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const id = std.fmt.parseInt(i64, form.get("id") orelse "", 10) catch {
+        res.status = 400;
+        res.body = "invalid id";
+        return;
+    };
+    const dir_str = form.get("dir") orelse "";
+    const dir: db.AclMoveDir = if (std.mem.eql(u8, dir_str, "up"))
+        .up
+    else if (std.mem.eql(u8, dir_str, "down"))
+        .down
+    else {
+        res.status = 400;
+        res.body = "invalid dir";
+        return;
+    };
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    try db.moveAclRule(conn, id, dir);
+    try app_mod.reloadAcl(app, conn);
     res.status = 302;
     res.header("Location", "/admin");
 }
 
 pub fn sitesDownload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     _ = try requireAdmin(app, req, res) orelse return;
-    const body = try app.sites.snapshotSource(app.io, res.arena);
+    const body = try app.sites.exportTsv(app.io, res.arena);
     res.header("Content-Type", "text/tab-separated-values; charset=utf-8");
     res.header("Content-Disposition", "attachment; filename=\"sites.tsv\"");
     res.body = body;
@@ -391,8 +677,15 @@ pub fn sitesUpload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.body = "missing file";
         return;
     };
-    switch (try app.sites.loadTsv(app.io, body, res.arena)) {
-        .ok => {},
+    const parsed = try @import("sites.zig").Sites.parseTsv(body, res.arena);
+    switch (parsed) {
+        .ok => |rows| {
+            const conn = try app.pool.acquire(app.io);
+            defer conn.release(app.io);
+            try db.replaceSites(conn, rows);
+            try app_mod.reloadSites(app, conn);
+            try app_mod.reloadAcl(app, conn); // site-scoped rules may have cascaded away
+        },
         .invalid => |msg| {
             res.status = 400;
             res.content_type = .HTML;
@@ -405,9 +698,88 @@ pub fn sitesUpload(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             return;
         },
     }
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn sitesCreate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const name = form.get("name") orelse "";
+    const host = form.get("host") orelse "";
+    const user_header = form.get("user_header") orelse "";
+    const user_id_header = form.get("user_id_header") orelse "";
+    const user_name_header = form.get("user_name_header") orelse "";
+    if (name.len == 0 or host.len == 0 or user_header.len == 0 or
+        user_id_header.len == 0 or user_name_header.len == 0)
+    {
+        res.status = 400;
+        res.body = "all site fields required";
+        return;
+    }
     const conn = try app.pool.acquire(app.io);
     defer conn.release(app.io);
-    try db.saveSitesDocument(conn, body);
+    _ = db.createSite(conn, name, host, user_header, user_id_header, user_name_header) catch |err| {
+        if (err == error.ConstraintUnique) {
+            res.status = 400;
+            res.body = "site name or host already exists";
+            return;
+        }
+        return err;
+    };
+    try app_mod.reloadSites(app, conn);
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn sitesUpdate(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const id = std.fmt.parseInt(i64, form.get("id") orelse "", 10) catch {
+        res.status = 400;
+        res.body = "invalid id";
+        return;
+    };
+    const name = form.get("name") orelse "";
+    const host = form.get("host") orelse "";
+    const user_header = form.get("user_header") orelse "";
+    const user_id_header = form.get("user_id_header") orelse "";
+    const user_name_header = form.get("user_name_header") orelse "";
+    if (name.len == 0 or host.len == 0 or user_header.len == 0 or
+        user_id_header.len == 0 or user_name_header.len == 0)
+    {
+        res.status = 400;
+        res.body = "all site fields required";
+        return;
+    }
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    db.updateSite(conn, id, name, host, user_header, user_id_header, user_name_header) catch |err| {
+        if (err == error.ConstraintUnique) {
+            res.status = 400;
+            res.body = "site name or host already exists";
+            return;
+        }
+        return err;
+    };
+    try app_mod.reloadSites(app, conn);
+    res.status = 302;
+    res.header("Location", "/admin");
+}
+
+pub fn sitesDelete(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    _ = try requireAdmin(app, req, res) orelse return;
+    const form = try req.formData();
+    const id = std.fmt.parseInt(i64, form.get("id") orelse "", 10) catch {
+        res.status = 400;
+        res.body = "invalid id";
+        return;
+    };
+    const conn = try app.pool.acquire(app.io);
+    defer conn.release(app.io);
+    try db.deleteSite(conn, id);
+    try app_mod.reloadSites(app, conn);
+    try app_mod.reloadAcl(app, conn);
     res.status = 302;
     res.header("Location", "/admin");
 }

@@ -74,6 +74,7 @@ test {
     _ = @import("util.zig");
     _ = @import("acl.zig");
     _ = @import("sites.zig");
+    _ = @import("db.zig");
     _ = @import("templates.zig");
     _ = @import("ber.zig");
     _ = @import("ldap.zig");

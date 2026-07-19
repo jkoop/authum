@@ -35,7 +35,7 @@
     </table>
     <ul class="help">
       <li>Traefik must send <code>X-Forwarded-Host</code>, <code>X-Forwarded-Uri</code>, and preferably <code>X-Forwarded-Method</code> / <code>X-Forwarded-Proto</code> to <code>/auth/verify</code>.</li>
-      <li>Hosts belong in the sites TSV (no scheme). ACL matches on <code>site_id</code>, not hostname.</li>
+      <li>Hosts belong in Admin → Sites (no scheme). ACL matches on numeric site id, not hostname.</li>
       <li>API clients still get a plain-text body; this page is for browsers.</li>
     </ul>
   </div>

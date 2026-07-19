@@ -2,6 +2,8 @@ const std = @import("std");
 const zqlite = @import("zqlite");
 const password = @import("password.zig");
 const util = @import("util.zig");
+const acl_mod = @import("acl.zig");
+const sites_mod = @import("sites.zig");
 
 pub const User = struct {
     id: i64,
@@ -25,6 +27,10 @@ pub const SessionUser = struct {
     username: []const u8,
 };
 
+pub const SiteRow = sites_mod.Site;
+
+pub const AclRuleRow = acl_mod.Acl.DbRule;
+
 const schema =
     \\create table if not exists users (
     \\  id integer primary key,
@@ -39,13 +45,6 @@ const schema =
     \\  user_id integer not null references users(id),
     \\  created_at integer not null
     \\);
-    \\create table if not exists tickets (
-    \\  id text primary key,
-    \\  session_id text not null references sessions(id) on delete cascade,
-    \\  site_id text not null,
-    \\  path text not null,
-    \\  expires_at integer not null
-    \\);
     \\create table if not exists groups (
     \\  id integer primary key,
     \\  name text not null unique
@@ -54,6 +53,37 @@ const schema =
     \\  group_id integer not null references groups(id) on delete cascade,
     \\  user_id integer not null references users(id) on delete cascade,
     \\  primary key (group_id, user_id)
+    \\);
+    \\create table if not exists sites (
+    \\  id integer primary key,
+    \\  name text not null unique,
+    \\  host text not null unique,
+    \\  user_header text not null,
+    \\  user_id_header text not null,
+    \\  user_name_header text not null
+    \\);
+    \\create table if not exists tickets (
+    \\  id text primary key,
+    \\  session_id text not null references sessions(id) on delete cascade,
+    \\  site_id integer not null references sites(id),
+    \\  path text not null,
+    \\  expires_at integer not null
+    \\);
+    \\create table if not exists acl_rules (
+    \\  id integer primary key,
+    \\  pos integer not null,
+    \\  subject_kind text not null check (subject_kind in ('any','user','group')),
+    \\  user_id integer references users(id) on delete cascade,
+    \\  group_id integer references groups(id) on delete cascade,
+    \\  site_id integer references sites(id) on delete cascade,
+    \\  path text not null,
+    \\  method text not null,
+    \\  effect text not null check (effect in ('allow','deny')),
+    \\  check (
+    \\    (subject_kind = 'any' and user_id is null and group_id is null) or
+    \\    (subject_kind = 'user' and user_id is not null and group_id is null) or
+    \\    (subject_kind = 'group' and group_id is not null and user_id is null)
+    \\  )
     \\);
     \\create table if not exists acl_document (
     \\  id integer primary key check (id = 1),
@@ -75,11 +105,245 @@ pub fn migrate(conn: zqlite.Conn, _: ?*anyopaque) !void {
         \\create unique index if not exists users_discord_id_unique
         \\on users(discord_id) where discord_id is not null
     );
+
+    // Existing DBs may still have tickets.site_id as text (no FK). Recreate.
+    if (try ticketsSiteIdIsText(conn)) {
+        try conn.execNoArgs("drop table if exists tickets");
+        try conn.execNoArgs(
+            \\create table tickets (
+            \\  id text primary key,
+            \\  session_id text not null references sessions(id) on delete cascade,
+            \\  site_id integer not null references sites(id),
+            \\  path text not null,
+            \\  expires_at integer not null
+            \\)
+        );
+    }
+}
+
+fn ticketsSiteIdIsText(conn: zqlite.Conn) !bool {
+    var rows = try conn.rows("pragma table_info(tickets)", .{});
+    defer rows.deinit();
+    while (rows.next()) |row| {
+        if (std.mem.eql(u8, row.text(1), "site_id")) {
+            const typ = row.text(2);
+            return std.ascii.indexOfIgnoreCase(typ, "int") == null;
+        }
+    }
+    if (rows.err) |err| return err;
+    return false;
 }
 
 pub fn onConnection(conn: zqlite.Conn, _: ?*anyopaque) !void {
     try conn.execNoArgs("pragma foreign_keys = on");
     try conn.busyTimeout(5000);
+}
+
+/// One-shot: import legacy *_document TSV into sites / acl_rules when those tables are empty.
+pub fn migrateDocumentsToTables(conn: zqlite.Conn, allocator: std.mem.Allocator) !void {
+    if (try tableEmpty(conn, "sites")) {
+        if (try loadDocumentBody(conn, "sites_document", allocator)) |body| {
+            defer allocator.free(body);
+            try importLegacySitesDocument(conn, allocator, body);
+        }
+    }
+    if (try tableEmpty(conn, "acl_rules")) {
+        if (try loadDocumentBody(conn, "acl_document", allocator)) |body| {
+            defer allocator.free(body);
+            try importLegacyAclDocument(conn, allocator, body);
+        }
+    }
+}
+
+fn tableEmpty(conn: zqlite.Conn, comptime table: []const u8) !bool {
+    const sql = "select 1 from " ++ table ++ " limit 1";
+    if (try conn.row(sql, .{})) |row| {
+        row.deinit();
+        return false;
+    }
+    return true;
+}
+
+fn loadDocumentBody(conn: zqlite.Conn, table: []const u8, allocator: std.mem.Allocator) !?[]u8 {
+    if (std.mem.eql(u8, table, "sites_document")) {
+        const row = (try conn.row("select body from sites_document where id = 1", .{})) orelse return null;
+        defer row.deinit();
+        return try allocator.dupe(u8, row.text(0));
+    }
+    if (std.mem.eql(u8, table, "acl_document")) {
+        const row = (try conn.row("select body from acl_document where id = 1", .{})) orelse return null;
+        defer row.deinit();
+        return try allocator.dupe(u8, row.text(0));
+    }
+    return null;
+}
+
+fn importLegacySitesDocument(conn: zqlite.Conn, allocator: std.mem.Allocator, tsv: []const u8) !void {
+    _ = allocator;
+    var lines = std.mem.splitScalar(u8, tsv, '\n');
+    var line_no: usize = 0;
+    while (lines.next()) |raw_line| {
+        line_no += 1;
+        const line = std.mem.trim(u8, raw_line, " \t\r");
+        if (line.len == 0 or line[0] == '#') continue;
+
+        var cols: [5][]const u8 = .{ "", "", "", "", "" };
+        var col_count: usize = 0;
+        var it = std.mem.splitScalar(u8, line, '\t');
+        while (it.next()) |raw_col| {
+            const col = std.mem.trim(u8, raw_col, " \t\r");
+            if (col_count < cols.len) cols[col_count] = col;
+            col_count += 1;
+        }
+
+        const site_id = cols[0];
+        const host = cols[1];
+        const user_header = cols[2];
+        const user_id_header = cols[3];
+        const user_name_header = cols[4];
+
+        if (std.mem.eql(u8, site_id, "site_id") and (host.len == 0 or std.mem.eql(u8, host, "host"))) continue;
+        if (site_id.len == 0 or host.len == 0 or user_header.len == 0 or
+            user_id_header.len == 0 or user_name_header.len == 0)
+        {
+            std.log.warn("skipping legacy sites line {d}: incomplete", .{line_no});
+            continue;
+        }
+
+        try conn.exec(
+            \\insert into sites (name, host, user_header, user_id_header, user_name_header)
+            \\values (?1, ?2, ?3, ?4, ?5)
+        ,
+            .{ site_id, host, user_header, user_id_header, user_name_header },
+        );
+    }
+}
+
+fn importLegacyAclDocument(conn: zqlite.Conn, allocator: std.mem.Allocator, tsv: []const u8) !void {
+    var lines = std.mem.splitScalar(u8, tsv, '\n');
+    var line_no: usize = 0;
+    var pos: i64 = 0;
+    while (lines.next()) |raw_line| {
+        line_no += 1;
+        const line = std.mem.trim(u8, raw_line, " \t\r");
+        if (line.len == 0 or line[0] == '#') continue;
+
+        var cols: [5][]const u8 = .{ "", "", "", "", "" };
+        var col_count: usize = 0;
+        var it = std.mem.splitScalar(u8, line, '\t');
+        while (it.next()) |raw_col| {
+            const col = std.mem.trim(u8, raw_col, " \t\r");
+            if (col_count < cols.len) cols[col_count] = col;
+            col_count += 1;
+        }
+
+        const user_col = cols[0];
+        const site_col = cols[1];
+        const path_col = cols[2];
+        const method_col = cols[3];
+        const effect_col = cols[4];
+
+        if (std.mem.eql(u8, user_col, "user") and (site_col.len == 0 or
+            std.mem.eql(u8, site_col, "site_id") or
+            std.mem.eql(u8, site_col, "host"))) continue;
+
+        if (site_col.len == 0 or path_col.len == 0 or method_col.len == 0) {
+            std.log.warn("skipping legacy ACL line {d}: incomplete", .{line_no});
+            continue;
+        }
+
+        const effect = effect_col;
+        if (!std.mem.eql(u8, effect, "allow") and !std.mem.eql(u8, effect, "deny")) {
+            std.log.warn("skipping legacy ACL line {d}: bad effect", .{line_no});
+            continue;
+        }
+
+        var subject_kind: []const u8 = undefined;
+        var user_id: ?i64 = null;
+        var group_id: ?i64 = null;
+
+        if (std.mem.eql(u8, user_col, "*")) {
+            subject_kind = "any";
+        } else if (user_col.len >= 2 and user_col[0] == '#' and std.ascii.isDigit(user_col[1])) {
+            subject_kind = "user";
+            user_id = std.fmt.parseInt(i64, user_col[1..], 10) catch {
+                std.log.warn("skipping legacy ACL line {d}: bad user id", .{line_no});
+                continue;
+            };
+        } else if (user_col.len >= 2 and user_col[0] == '@' and std.ascii.isDigit(user_col[1])) {
+            subject_kind = "group";
+            group_id = std.fmt.parseInt(i64, user_col[1..], 10) catch {
+                std.log.warn("skipping legacy ACL line {d}: bad group id", .{line_no});
+                continue;
+            };
+        } else if (user_col.len > 1 and user_col[0] == '@') {
+            subject_kind = "group";
+            const gname = user_col[1..];
+            group_id = try findGroupIdByName(conn, gname);
+            if (group_id == null) {
+                std.log.warn("skipping legacy ACL line {d}: unknown group {s}", .{ line_no, gname });
+                continue;
+            }
+        } else if (std.mem.indexOfScalar(u8, user_col, ':')) |colon| {
+            subject_kind = "user";
+            user_id = std.fmt.parseInt(i64, user_col[0..colon], 10) catch {
+                std.log.warn("skipping legacy ACL line {d}: bad user id", .{line_no});
+                continue;
+            };
+        } else {
+            std.log.warn("skipping legacy ACL line {d}: bad subject {s}", .{ line_no, user_col });
+            continue;
+        }
+
+        const site_id: ?i64 = if (std.mem.eql(u8, site_col, "*"))
+            null
+        else blk: {
+            if (std.fmt.parseInt(i64, site_col, 10)) |sid| {
+                break :blk sid;
+            } else |_| {
+                break :blk try findSiteIdByName(conn, site_col);
+            }
+        };
+        if (!std.mem.eql(u8, site_col, "*") and site_id == null) {
+            std.log.warn("skipping legacy ACL line {d}: unknown site {s}", .{ line_no, site_col });
+            continue;
+        }
+
+        _ = allocator;
+        try insertAclRule(conn, pos, subject_kind, user_id, group_id, site_id, path_col, method_col, effect);
+        pos += 1;
+    }
+}
+
+fn findGroupIdByName(conn: zqlite.Conn, name: []const u8) !?i64 {
+    const row = (try conn.row("select id from groups where name = ?1", .{name})) orelse return null;
+    defer row.deinit();
+    return row.int(0);
+}
+
+fn findSiteIdByName(conn: zqlite.Conn, name: []const u8) !?i64 {
+    const row = (try conn.row("select id from sites where name = ?1", .{name})) orelse return null;
+    defer row.deinit();
+    return row.int(0);
+}
+
+fn insertAclRule(
+    conn: zqlite.Conn,
+    pos: i64,
+    subject_kind: []const u8,
+    user_id: ?i64,
+    group_id: ?i64,
+    site_id: ?i64,
+    path: []const u8,
+    method: []const u8,
+    effect: []const u8,
+) !void {
+    try conn.exec(
+        \\insert into acl_rules (pos, subject_kind, user_id, group_id, site_id, path, method, effect)
+        \\values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+    ,
+        .{ pos, subject_kind, user_id, group_id, site_id, path, method, effect },
+    );
 }
 
 pub fn seedAdmin(
@@ -107,47 +371,250 @@ pub fn seedAdmin(
     }
 }
 
-pub fn ensureDocuments(conn: zqlite.Conn) !void {
-    const default_acl = "user\tsite_id\tpath\tmethod\teffect\n";
-    const default_sites = "site_id\thost\tuser_header\tuser_id_header\tuser_name_header\n";
+// --- sites CRUD ---
 
-    if (try conn.row("select 1 from acl_document where id = 1", .{})) |row| {
-        row.deinit();
-    } else {
-        try conn.exec("insert into acl_document (id, body) values (1, ?1)", .{default_acl});
+pub fn listSites(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]SiteRow {
+    var list: std.ArrayList(SiteRow) = .empty;
+    errdefer {
+        for (list.items) |s| {
+            allocator.free(s.name);
+            allocator.free(s.host);
+            allocator.free(s.user_header);
+            allocator.free(s.user_id_header);
+            allocator.free(s.user_name_header);
+        }
+        list.deinit(allocator);
     }
 
-    if (try conn.row("select 1 from sites_document where id = 1", .{})) |row| {
-        row.deinit();
-    } else {
-        try conn.exec("insert into sites_document (id, body) values (1, ?1)", .{default_sites});
+    var rows = try conn.rows(
+        \\select id, name, host, user_header, user_id_header, user_name_header
+        \\from sites order by id
+    ,
+        .{},
+    );
+    defer rows.deinit();
+    while (rows.next()) |row| {
+        try list.append(allocator, .{
+            .id = row.int(0),
+            .name = try allocator.dupe(u8, row.text(1)),
+            .host = try allocator.dupe(u8, row.text(2)),
+            .user_header = try allocator.dupe(u8, row.text(3)),
+            .user_id_header = try allocator.dupe(u8, row.text(4)),
+            .user_name_header = try allocator.dupe(u8, row.text(5)),
+        });
     }
+    if (rows.err) |err| return err;
+    return try list.toOwnedSlice(allocator);
 }
 
-pub fn loadAclDocument(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]u8 {
-    const row = (try conn.row("select body from acl_document where id = 1", .{})) orelse return error.MissingDocument;
-    defer row.deinit();
-    return try allocator.dupe(u8, row.text(0));
-}
-
-pub fn loadSitesDocument(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]u8 {
-    const row = (try conn.row("select body from sites_document where id = 1", .{})) orelse return error.MissingDocument;
-    defer row.deinit();
-    return try allocator.dupe(u8, row.text(0));
-}
-
-pub fn saveAclDocument(conn: zqlite.Conn, body: []const u8) !void {
+pub fn createSite(
+    conn: zqlite.Conn,
+    name: []const u8,
+    host: []const u8,
+    user_header: []const u8,
+    user_id_header: []const u8,
+    user_name_header: []const u8,
+) !i64 {
     try conn.exec(
-        "insert into acl_document (id, body) values (1, ?1) on conflict(id) do update set body = excluded.body",
-        .{body},
+        \\insert into sites (name, host, user_header, user_id_header, user_name_header)
+        \\values (?1, ?2, ?3, ?4, ?5)
+    ,
+        .{ name, host, user_header, user_id_header, user_name_header },
+    );
+    return conn.lastInsertedRowId();
+}
+
+pub fn updateSite(
+    conn: zqlite.Conn,
+    id: i64,
+    name: []const u8,
+    host: []const u8,
+    user_header: []const u8,
+    user_id_header: []const u8,
+    user_name_header: []const u8,
+) !void {
+    try conn.exec(
+        \\update sites set name = ?1, host = ?2, user_header = ?3,
+        \\user_id_header = ?4, user_name_header = ?5 where id = ?6
+    ,
+        .{ name, host, user_header, user_id_header, user_name_header, id },
     );
 }
 
-pub fn saveSitesDocument(conn: zqlite.Conn, body: []const u8) !void {
-    try conn.exec(
-        "insert into sites_document (id, body) values (1, ?1) on conflict(id) do update set body = excluded.body",
-        .{body},
+pub fn deleteSite(conn: zqlite.Conn, id: i64) !void {
+    try conn.exec("delete from tickets where site_id = ?1", .{id});
+    try conn.exec("delete from sites where id = ?1", .{id});
+}
+
+/// Full replace of sites from parsed TSV rows (transactional). Cascades site-scoped ACL rules.
+pub fn replaceSites(conn: zqlite.Conn, rows: []const sites_mod.ParsedSite) !void {
+    try conn.transaction();
+    errdefer conn.rollback();
+
+    try conn.execNoArgs("delete from tickets");
+    try conn.execNoArgs("delete from sites");
+
+    for (rows) |r| {
+        if (r.id) |id| {
+            try conn.exec(
+                \\insert into sites (id, name, host, user_header, user_id_header, user_name_header)
+                \\values (?1, ?2, ?3, ?4, ?5, ?6)
+            ,
+                .{ id, r.name, r.host, r.user_header, r.user_id_header, r.user_name_header },
+            );
+        } else {
+            try conn.exec(
+                \\insert into sites (name, host, user_header, user_id_header, user_name_header)
+                \\values (?1, ?2, ?3, ?4, ?5)
+            ,
+                .{ r.name, r.host, r.user_header, r.user_id_header, r.user_name_header },
+            );
+        }
+    }
+    try conn.commit();
+}
+
+// --- acl_rules CRUD ---
+
+pub fn listAclRules(conn: zqlite.Conn, allocator: std.mem.Allocator) ![]AclRuleRow {
+    var list: std.ArrayList(AclRuleRow) = .empty;
+    errdefer {
+        for (list.items) |r| {
+            allocator.free(r.path);
+            allocator.free(r.method);
+        }
+        list.deinit(allocator);
+    }
+
+    var rows = try conn.rows(
+        \\select id, pos, subject_kind, user_id, group_id, site_id, path, method, effect
+        \\from acl_rules order by pos, id
+    ,
+        .{},
     );
+    defer rows.deinit();
+    while (rows.next()) |row| {
+        const kind = row.text(2);
+        const subject: acl_mod.Subject = if (std.mem.eql(u8, kind, "any"))
+            .any
+        else if (std.mem.eql(u8, kind, "user"))
+            .{ .user_id = row.nullableInt(3) orelse return error.CorruptAclRule }
+        else if (std.mem.eql(u8, kind, "group"))
+            .{ .group_id = row.nullableInt(4) orelse return error.CorruptAclRule }
+        else
+            return error.CorruptAclRule;
+
+        const effect: acl_mod.Effect = if (std.mem.eql(u8, row.text(8), "allow"))
+            .allow
+        else if (std.mem.eql(u8, row.text(8), "deny"))
+            .deny
+        else
+            return error.CorruptAclRule;
+
+        try list.append(allocator, .{
+            .id = row.int(0),
+            .pos = row.int(1),
+            .subject = subject,
+            .site_id = row.nullableInt(5),
+            .path = try allocator.dupe(u8, row.text(6)),
+            .method = try allocator.dupe(u8, row.text(7)),
+            .effect = effect,
+        });
+    }
+    if (rows.err) |err| return err;
+    return try list.toOwnedSlice(allocator);
+}
+
+fn subjectParts(subject: acl_mod.Subject) struct { []const u8, ?i64, ?i64 } {
+    return switch (subject) {
+        .any => .{ "any", null, null },
+        .user_id => |id| .{ "user", id, null },
+        .group_id => |id| .{ "group", null, id },
+    };
+}
+
+pub fn createAclRule(
+    conn: zqlite.Conn,
+    subject: acl_mod.Subject,
+    site_id: ?i64,
+    path: []const u8,
+    method: []const u8,
+    effect: acl_mod.Effect,
+) !i64 {
+    const next_pos: i64 = blk: {
+        if (try conn.row("select coalesce(max(pos), -1) + 1 from acl_rules", .{})) |row| {
+            defer row.deinit();
+            break :blk row.int(0);
+        }
+        break :blk 0;
+    };
+    const parts = subjectParts(subject);
+    try insertAclRule(conn, next_pos, parts[0], parts[1], parts[2], site_id, path, method, @tagName(effect));
+    return conn.lastInsertedRowId();
+}
+
+pub fn updateAclRule(
+    conn: zqlite.Conn,
+    id: i64,
+    subject: acl_mod.Subject,
+    site_id: ?i64,
+    path: []const u8,
+    method: []const u8,
+    effect: acl_mod.Effect,
+) !void {
+    const parts = subjectParts(subject);
+    try conn.exec(
+        \\update acl_rules set subject_kind = ?1, user_id = ?2, group_id = ?3,
+        \\site_id = ?4, path = ?5, method = ?6, effect = ?7 where id = ?8
+    ,
+        .{ parts[0], parts[1], parts[2], site_id, path, method, @tagName(effect), id },
+    );
+}
+
+pub fn deleteAclRule(conn: zqlite.Conn, id: i64) !void {
+    try conn.exec("delete from acl_rules where id = ?1", .{id});
+}
+
+pub const AclMoveDir = enum { up, down };
+
+pub fn moveAclRule(conn: zqlite.Conn, id: i64, direction: AclMoveDir) !void {
+    const cur = (try conn.row("select pos from acl_rules where id = ?1", .{id})) orelse return;
+    defer cur.deinit();
+    const pos = cur.int(0);
+
+    const neighbor_sql = switch (direction) {
+        .up => "select id, pos from acl_rules where pos < ?1 order by pos desc limit 1",
+        .down => "select id, pos from acl_rules where pos > ?1 order by pos asc limit 1",
+    };
+    const neighbor = (try conn.row(neighbor_sql, .{pos})) orelse return;
+    defer neighbor.deinit();
+    const nid = neighbor.int(0);
+    const npos = neighbor.int(1);
+
+    try conn.exec("update acl_rules set pos = ?1 where id = ?2", .{ npos, id });
+    try conn.exec("update acl_rules set pos = ?1 where id = ?2", .{ pos, nid });
+}
+
+pub fn replaceAclRules(conn: zqlite.Conn, rows: []const acl_mod.ParsedRule) !void {
+    try conn.transaction();
+    errdefer conn.rollback();
+
+    try conn.execNoArgs("delete from acl_rules");
+    for (rows, 0..) |r, i| {
+        const parts = subjectParts(r.subject);
+        try insertAclRule(
+            conn,
+            @intCast(i),
+            parts[0],
+            parts[1],
+            parts[2],
+            r.site_id,
+            r.path,
+            r.method,
+            @tagName(r.effect),
+        );
+    }
+    try conn.commit();
 }
 
 pub fn createUser(
@@ -343,7 +810,7 @@ pub fn listGroupMembers(
     return try list.toOwnedSlice(allocator);
 }
 
-/// Group names the user belongs to (allocated from `allocator`).
+/// Group names the user belongs to (allocated from `allocator`). Used by LDAP.
 pub fn listGroupNamesForUser(
     conn: zqlite.Conn,
     allocator: std.mem.Allocator,
@@ -367,6 +834,32 @@ pub fn listGroupNamesForUser(
     defer rows.deinit();
     while (rows.next()) |row| {
         try list.append(allocator, try allocator.dupe(u8, row.text(0)));
+    }
+    if (rows.err) |err| return err;
+    return try list.toOwnedSlice(allocator);
+}
+
+/// Group ids the user belongs to (allocated from `allocator`).
+pub fn listGroupIdsForUser(
+    conn: zqlite.Conn,
+    allocator: std.mem.Allocator,
+    user_id: i64,
+) ![]i64 {
+    var list: std.ArrayList(i64) = .empty;
+    errdefer list.deinit(allocator);
+
+    var rows = try conn.rows(
+        \\select groups.id
+        \\from group_members
+        \\join groups on groups.id = group_members.group_id
+        \\where group_members.user_id = ?1
+        \\order by groups.id
+    ,
+        .{user_id},
+    );
+    defer rows.deinit();
+    while (rows.next()) |row| {
+        try list.append(allocator, row.int(0));
     }
     if (rows.err) |err| return err;
     return try list.toOwnedSlice(allocator);
@@ -453,7 +946,7 @@ pub fn createTicket(
     allocator: std.mem.Allocator,
     io: std.Io,
     session_id: []const u8,
-    site_id: []const u8,
+    site_id: i64,
     path: []const u8,
 ) ![]u8 {
     var id_buf: [64]u8 = undefined;
@@ -472,7 +965,7 @@ pub fn consumeTicket(
     allocator: std.mem.Allocator,
     io: std.Io,
     ticket_id: []const u8,
-) !?struct { session_id: []u8, site_id: []u8, path: []u8 } {
+) !?struct { session_id: []u8, site_id: i64, path: []u8 } {
     try conn.transaction();
     errdefer conn.rollback();
 
@@ -487,8 +980,7 @@ pub fn consumeTicket(
     const expires_at = row.int(3);
     const session_id = try allocator.dupe(u8, row.text(0));
     errdefer allocator.free(session_id);
-    const site_id = try allocator.dupe(u8, row.text(1));
-    errdefer allocator.free(site_id);
+    const site_id = row.int(1);
     const path = try allocator.dupe(u8, row.text(2));
     errdefer allocator.free(path);
     row.deinit();
@@ -498,7 +990,6 @@ pub fn consumeTicket(
 
     if (expires_at < util.unixNow(io)) {
         allocator.free(session_id);
-        allocator.free(site_id);
         allocator.free(path);
         return null;
     }
@@ -508,4 +999,62 @@ pub fn consumeTicket(
         .site_id = site_id,
         .path = path,
     };
+}
+
+test "migrateDocumentsToTables imports legacy TSV" {
+    var conn = try zqlite.open(":memory:", zqlite.OpenFlags.Create | zqlite.OpenFlags.EXResCode);
+    defer conn.close();
+    try migrate(conn, null);
+    try conn.execNoArgs("pragma foreign_keys = on");
+
+    try conn.exec(
+        "insert into users (id, username, password_hash, created_at, enabled) values (1, 'admin', 'x', 0, 1)",
+        .{},
+    );
+    try conn.exec("insert into groups (id, name) values (7, 'friends')", .{});
+    try conn.exec(
+        \\insert into sites_document (id, body) values (1, ?1)
+    ,
+        .{"site_id\thost\tuser_header\tuser_id_header\tuser_name_header\n" ++
+            "jellyfin\tmedia.example.com\tRemote-User\tRemote-User-Id\tRemote-User-Name\n"},
+    );
+    try conn.exec(
+        \\insert into acl_document (id, body) values (1, ?1)
+    ,
+        .{"user\tsite_id\tpath\tmethod\teffect\n" ++
+            "@friends\tjellyfin\t^/\t*\tallow\n" ++
+            "1:admin\t*\t^/admin\t*\tallow\n"},
+    );
+
+    try migrateDocumentsToTables(conn, std.testing.allocator);
+
+    const sites = try listSites(conn, std.testing.allocator);
+    defer {
+        for (sites) |s| {
+            std.testing.allocator.free(s.name);
+            std.testing.allocator.free(s.host);
+            std.testing.allocator.free(s.user_header);
+            std.testing.allocator.free(s.user_id_header);
+            std.testing.allocator.free(s.user_name_header);
+        }
+        std.testing.allocator.free(sites);
+    }
+    try std.testing.expectEqual(@as(usize, 1), sites.len);
+    try std.testing.expectEqualStrings("jellyfin", sites[0].name);
+
+    const rules = try listAclRules(conn, std.testing.allocator);
+    defer {
+        for (rules) |r| {
+            std.testing.allocator.free(r.path);
+            std.testing.allocator.free(r.method);
+        }
+        std.testing.allocator.free(rules);
+    }
+    try std.testing.expectEqual(@as(usize, 2), rules.len);
+    try std.testing.expect(rules[0].subject == .group_id);
+    try std.testing.expectEqual(@as(i64, 7), rules[0].subject.group_id);
+    try std.testing.expectEqual(sites[0].id, rules[0].site_id.?);
+    try std.testing.expect(rules[1].subject == .user_id);
+    try std.testing.expectEqual(@as(i64, 1), rules[1].subject.user_id);
+    try std.testing.expect(rules[1].site_id == null);
 }

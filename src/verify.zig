@@ -40,11 +40,11 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const site = (try app.sites.byHost(app.io, arena, host)) orelse {
         return respondForbidden(app, req, res, arena, browser, .{
             .reason = "unknown site",
-            .hint = "This host is not in the sites registry. Add it to the sites TSV (hostname only, no scheme) and ensure Traefik forwards the correct X-Forwarded-Host.",
+            .hint = "This host is not in the sites registry. Add it under Admin → Sites (hostname only, no scheme) and ensure Traefik forwards the correct X-Forwarded-Host.",
             .host = host,
             .path = path,
             .method = method,
-            .site_id = "",
+            .site_label = "",
             .user = user,
         });
     };
@@ -52,17 +52,17 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const groups = blk: {
         const conn = try app.pool.acquire(app.io);
         defer conn.release(app.io);
-        break :blk try db.listGroupNamesForUser(conn, arena, user.user_id);
+        break :blk try db.listGroupIdsForUser(conn, arena, user.user_id);
     };
-    const effect = app.acl.decide(app.io, user.user_id, groups, site.site_id, path, method);
+    const effect = app.acl.decide(app.io, user.user_id, groups, site.id, path, method);
     if (effect == .deny) {
         return respondForbidden(app, req, res, arena, browser, .{
             .reason = "forbidden",
-            .hint = "You are authenticated, but ACL denied this request. Check site_id, path regex, method, and user/group columns in the ACL TSV.",
+            .hint = "You are authenticated, but ACL denied this request. Check site id, path regex, method, and user/group columns in the ACL.",
             .host = host,
             .path = path,
             .method = method,
-            .site_id = site.site_id,
+            .site_label = try std.fmt.allocPrint(arena, "{d} ({s})", .{ site.id, site.name }),
             .user = user,
         });
     }
@@ -128,11 +128,11 @@ fn resolveUser(
     const site = (try app.sites.byHost(app.io, arena, host)) orelse {
         try respondForbidden(app, req, res, arena, true, .{
             .reason = "unknown site",
-            .hint = "This host is not in the sites registry. Add it to the sites TSV (hostname only, no scheme) and ensure Traefik forwards the correct X-Forwarded-Host.",
+            .hint = "This host is not in the sites registry. Add it under Admin → Sites (hostname only, no scheme) and ensure Traefik forwards the correct X-Forwarded-Host.",
             .host = host,
             .path = parsed.path,
             .method = method,
-            .site_id = "",
+            .site_label = "",
             .user = null,
         });
         return null;
@@ -140,8 +140,8 @@ fn resolveUser(
     const from_path = try util.urlEncode(arena, parsed.path);
     const loc = try std.fmt.allocPrint(
         arena,
-        "{s}://{s}/login?from_site={s}&from_path={s}",
-        .{ util.schemeFromProto(req.header("x-forwarded-proto")), app.config.domain, site.site_id, from_path },
+        "{s}://{s}/login?from_site={d}&from_path={s}",
+        .{ util.schemeFromProto(req.header("x-forwarded-proto")), app.config.domain, site.id, from_path },
     );
     res.status = 302;
     res.header("Location", loc);
@@ -155,7 +155,7 @@ const ForbiddenCtx = struct {
     host: []const u8,
     path: []const u8,
     method: []const u8,
-    site_id: []const u8,
+    site_label: []const u8,
     user: ?db.SessionUser,
 };
 
@@ -188,9 +188,9 @@ fn respondForbidden(
         .path = ctx.path,
         .method = ctx.method,
         .proto = req.header("x-forwarded-proto") orelse "(missing)",
-        .site_id = ctx.site_id,
+        .site_id = ctx.site_label,
         .user_label = user_label,
-        .has_site = ctx.site_id.len > 0,
+        .has_site = ctx.site_label.len > 0,
         .has_user = ctx.user != null,
     });
 }

@@ -36,47 +36,50 @@ labels:
 # Login UI (AUTHUM_DOMAIN) — no ForwardAuth; route to the authum service
 ```
 
-Register each app in the admin **Sites** TSV and allow paths in the **ACL** TSV. After login, users bounce through `https://{host}/_authum/login` so each site can set its own cookie (same session id everywhere).
+Register each app under admin **Sites** and allow paths under **ACL** (editable tables; TSV download/upload is backup). After login, users bounce through `https://{host}/_authum/login` so each site can set its own cookie (same session id everywhere).
 
-## Sites TSV
+## Sites
+
+Stored in SQLite (`sites`). ACL and tickets reference the numeric `id`. `name` is a renameable label.
 
 | Column | Meaning |
 |--------|---------|
-| `site_id` | Stable id referenced by ACL rows |
+| `id` | Stable numeric id (ACL / login `from_site`) |
+| `name` | Human label |
 | `host` | Hostname only (no `https://`) |
 | `user_header` / `user_id_header` / `user_name_header` | Response headers Traefik must forward |
 
-Example:
+Backup TSV:
 
 ```tsv
-site_id	host	user_header	user_id_header	user_name_header
-jellyfin	media.example.com	Remote-User	Remote-User-Id	Remote-User-Name
+id	name	host	user_header	user_id_header	user_name_header
+1	jellyfin	media.example.com	Remote-User	Remote-User-Id	Remote-User-Name
 ```
 
-## ACL TSV
+## ACL
 
-First matching row wins; no match means deny.
+Stored in SQLite (`acl_rules`) with foreign keys to users, groups, and sites. First matching row wins; no match means deny.
 
 | Column | Meaning |
 |--------|---------|
-| `user` | `*` (anyone), `id:username` (match on numeric id; username is a label), or `@group` |
-| `site_id` | Sites id or `*` |
+| `user` | `*` (anyone), `#id` (user id), or `@id` (group id) |
+| `site_id` | Numeric site id or `*` |
 | `path` | RE2-style regex against the request path |
 | `method` | HTTP method or `*` |
 | `effect` | `allow` or `deny` |
 
-Example:
+Backup TSV:
 
 ```tsv
 user	site_id	path	method	effect
-*	files	(?i)\.pdf$	*	deny
-@friends	jellyfin	^/	*	allow
-1:admin	*	^/	*	allow
+*	2	(?i)\.pdf$	*	deny
+@3	1	^/	*	allow
+#1	*	^/	*	allow
 ```
 
-Use `^/…` when you want prefix-style matching. Renaming a user does not break `id:username` rows (id is what matches).
+Use `^/…` when you want prefix-style matching. Renaming users, groups, or site names does not break ACL rows (ids are what match).
 
-Create groups and memberships in the admin UI, then reference them as `@friends` instead of duplicating a row per person.
+Create groups and memberships in the admin UI, then reference them as `@3` (the group’s numeric id).
 
 ## LDAP (Jellyfin)
 

@@ -52,30 +52,37 @@ pub fn bootstrap(app: *App) !void {
     const conn = try app.pool.acquire(app.io);
     defer conn.release(app.io);
 
-    try db.ensureDocuments(conn);
+    try db.migrateDocumentsToTables(conn, app.allocator);
     try db.seedAdmin(conn, app.allocator, app.io, app.config.admin_user, app.config.admin_password);
+    try reloadSites(app, conn);
+    try reloadAcl(app, conn);
+}
 
-    const acl_tsv = try db.loadAclDocument(conn, app.allocator);
-    defer app.allocator.free(acl_tsv);
-    switch (try app.acl.loadTsv(app.io, acl_tsv, app.allocator)) {
-        .ok => {},
-        .invalid => |msg| {
-            defer app.allocator.free(msg);
-            std.log.err("invalid ACL document in database: {s}", .{msg});
-            return error.InvalidAclDocument;
-        },
+pub fn reloadSites(app: *App, conn: zqlite.Conn) !void {
+    const rows = try db.listSites(conn, app.allocator);
+    defer {
+        for (rows) |s| {
+            app.allocator.free(s.name);
+            app.allocator.free(s.host);
+            app.allocator.free(s.user_header);
+            app.allocator.free(s.user_id_header);
+            app.allocator.free(s.user_name_header);
+        }
+        app.allocator.free(rows);
     }
+    try app.sites.load(app.io, rows);
+}
 
-    const sites_tsv = try db.loadSitesDocument(conn, app.allocator);
-    defer app.allocator.free(sites_tsv);
-    switch (try app.sites.loadTsv(app.io, sites_tsv, app.allocator)) {
-        .ok => {},
-        .invalid => |msg| {
-            defer app.allocator.free(msg);
-            std.log.err("invalid sites document in database: {s}", .{msg});
-            return error.InvalidSitesDocument;
-        },
+pub fn reloadAcl(app: *App, conn: zqlite.Conn) !void {
+    const rows = try db.listAclRules(conn, app.allocator);
+    defer {
+        for (rows) |r| {
+            app.allocator.free(r.path);
+            app.allocator.free(r.method);
+        }
+        app.allocator.free(rows);
     }
+    try app.acl.load(app.io, rows);
 }
 
 pub fn registerRoutes(app: *App, router: anytype) void {
@@ -88,9 +95,16 @@ pub fn registerRoutes(app: *App, router: anytype) void {
     router.post("/logout", web.logout, .{});
     router.get("/admin", web.adminGet, .{});
     router.get("/admin/acl.tsv", web.aclDownload, .{});
-    router.post("/admin/acl", web.aclUpload, .{});
+    router.post("/admin/acl/upload", web.aclUpload, .{});
+    router.post("/admin/acl", web.aclCreate, .{});
+    router.post("/admin/acl/update", web.aclUpdate, .{});
+    router.post("/admin/acl/delete", web.aclDelete, .{});
+    router.post("/admin/acl/move", web.aclMove, .{});
     router.get("/admin/sites.tsv", web.sitesDownload, .{});
-    router.post("/admin/sites", web.sitesUpload, .{});
+    router.post("/admin/sites/upload", web.sitesUpload, .{});
+    router.post("/admin/sites", web.sitesCreate, .{});
+    router.post("/admin/sites/update", web.sitesUpdate, .{});
+    router.post("/admin/sites/delete", web.sitesDelete, .{});
     router.post("/admin/users", web.usersCreate, .{});
     router.post("/admin/users/update", web.usersUpdate, .{});
     router.post("/admin/users/delete", web.usersDelete, .{});

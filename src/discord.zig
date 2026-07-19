@@ -109,11 +109,14 @@ pub fn loginCallback(app: *App, req: *httpz.Request, res: *httpz.Response) !void
         return;
     }
 
-    const site = (try app.sites.byId(app.io, res.arena, from_site)) orelse {
+    const site_id = std.fmt.parseInt(i64, from_site, 10) catch {
+        return redirectLoginError(res, from_site, from_path, "unknown site");
+    };
+    const site = (try app.sites.byId(app.io, res.arena, site_id)) orelse {
         return redirectLoginError(res, from_site, from_path, "unknown site");
     };
     const path = if (from_path.len == 0) "/" else from_path;
-    const ticket = try db.createTicket(conn, res.arena, app.io, session_id, site.site_id, path);
+    const ticket = try db.createTicket(conn, res.arena, app.io, session_id, site.id, path);
     const path_enc = try util.urlEncode(res.arena, path);
     const scheme = util.schemeFromProto(req.header("x-forwarded-proto"));
     const loc = try std.fmt.allocPrint(
