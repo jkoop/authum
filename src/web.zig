@@ -301,13 +301,26 @@ pub fn adminGet(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             if (members_buf.items.len > 0) try members_buf.appendSlice(res.arena, "<br>");
             try members_buf.appendSlice(res.arena, chip);
         }
+        var user_select: std.ArrayList(u8) = .empty;
+        defer user_select.deinit(res.arena);
+        try user_select.appendSlice(res.arena, "<select name=\"user_id\" required>");
+        try user_select.appendSlice(res.arena, "<option value=\"\">choose user</option>");
+        for (users) |u| {
+            const uname_esc = try util.htmlEscape(res.arena, u.username);
+            try user_select.appendSlice(res.arena, try std.fmt.allocPrint(
+                res.arena,
+                "<option value=\"{d}\">{d} {s}</option>",
+                .{ u.id, u.id, uname_esc },
+            ));
+        }
+        try user_select.appendSlice(res.arena, "</select>");
         const add_form = try std.fmt.allocPrint(res.arena,
             \\<form method="POST" action="/admin/groups/members" style="margin-top:0.5em">
             \\<input type="hidden" name="group_id" value="{d}">
-            \\<input name="username" placeholder="username" required>
+            \\{s}
             \\<button type="submit">Add</button>
             \\</form>
-        , .{g.id});
+        , .{ g.id, user_select.items });
         const row = try std.fmt.allocPrint(res.arena,
             \\<tr>
             \\<form class="row" method="POST" action="/admin/groups/update">
@@ -501,24 +514,34 @@ fn buildAclHtml(app: *App, arena: std.mem.Allocator, users: []const db.User, gro
     errdefer out.deinit(arena);
     try out.appendSlice(arena,
         \\<table>
-        \\<tr><th></th><th>User</th><th>Site</th><th>Path</th><th>Method</th><th>Effect</th><th></th><th></th></tr>
+        \\<tr><th>Pos</th><th>User</th><th>Site</th><th>Path</th><th>Method</th><th>Effect</th><th></th><th></th></tr>
     );
-    for (snaps.items) |rule| {
+    for (snaps.items, 0..) |rule, idx| {
         const user_sel = try buildSubjectSelect(arena, users, groups, rule.subject);
         const site_sel = try buildSiteSelect(arena, site_opts.items, rule.site_id);
         const effect = @tagName(rule.effect);
+        var pos_select: std.ArrayList(u8) = .empty;
+        defer pos_select.deinit(arena);
+        try pos_select.appendSlice(arena, "<select name=\"pos\">");
+        for (snaps.items, 0..) |_, pos_idx| {
+            try pos_select.appendSlice(arena, try std.fmt.allocPrint(
+                arena,
+                "<option value=\"{d}\"{s}>{d}</option>",
+                .{
+                    pos_idx + 1,
+                    if (pos_idx == idx) " selected" else "",
+                    pos_idx + 1,
+                },
+            ));
+        }
+        try pos_select.appendSlice(arena, "</select>");
         const row = try std.fmt.allocPrint(arena,
             \\<tr>
             \\<td>
             \\<form method="POST" action="/admin/acl/move" class="inline">
             \\<input type="hidden" name="id" value="{d}">
-            \\<input type="hidden" name="dir" value="up">
-            \\<button type="submit" title="Move up">↑</button>
-            \\</form>
-            \\<form method="POST" action="/admin/acl/move" class="inline">
-            \\<input type="hidden" name="id" value="{d}">
-            \\<input type="hidden" name="dir" value="down">
-            \\<button type="submit" title="Move down">↓</button>
+            \\{s}
+            \\<button type="submit">Move</button>
             \\</form>
             \\</td>
             \\<form class="row" method="POST" action="/admin/acl/update">
@@ -544,7 +567,7 @@ fn buildAclHtml(app: *App, arena: std.mem.Allocator, users: []const db.User, gro
             \\</tr>
         , .{
             rule.id,
-            rule.id,
+            pos_select.items,
             rule.id,
             user_sel,
             site_sel,
@@ -692,19 +715,28 @@ pub fn aclMove(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.body = "invalid id";
         return;
     };
-    const dir_str = form.get("dir") orelse "";
-    const dir: db.AclMoveDir = if (std.mem.eql(u8, dir_str, "up"))
-        .up
-    else if (std.mem.eql(u8, dir_str, "down"))
-        .down
-    else {
-        res.status = 400;
-        res.body = "invalid dir";
-        return;
-    };
     const conn = try app.pool.acquire(app.io);
     defer conn.release(app.io);
-    try db.moveAclRule(conn, id, dir);
+    if (form.get("pos")) |pos_str| {
+        const pos = std.fmt.parseInt(i64, pos_str, 10) catch {
+            res.status = 400;
+            res.body = "invalid position";
+            return;
+        };
+        try db.moveAclRuleToPos(conn, id, pos);
+    } else {
+        const dir_str = form.get("dir") orelse "";
+        const dir: db.AclMoveDir = if (std.mem.eql(u8, dir_str, "up"))
+            .up
+        else if (std.mem.eql(u8, dir_str, "down"))
+            .down
+        else {
+            res.status = 400;
+            res.body = "invalid dir";
+            return;
+        };
+        try db.moveAclRule(conn, id, dir);
+    }
     try app_mod.reloadAcl(app, conn);
     res.status = 302;
     res.header("Location", "/admin");
@@ -1016,17 +1048,13 @@ pub fn groupsMembersAdd(app: *App, req: *httpz.Request, res: *httpz.Response) !v
     _ = try requireAdmin(app, req, res) orelse return;
     const form = try req.formData();
     const group_id_str = form.get("group_id") orelse "";
+    const user_id_str = form.get("user_id") orelse "";
     const username = form.get("username") orelse "";
     const group_id = std.fmt.parseInt(i64, group_id_str, 10) catch {
         res.status = 400;
         res.body = "invalid group id";
         return;
     };
-    if (username.len == 0) {
-        res.status = 400;
-        res.body = "username required";
-        return;
-    }
     const conn = try app.pool.acquire(app.io);
     defer conn.release(app.io);
     if ((try db.findGroupById(conn, res.arena, group_id)) == null) {
@@ -1034,12 +1062,26 @@ pub fn groupsMembersAdd(app: *App, req: *httpz.Request, res: *httpz.Response) !v
         res.body = "group not found";
         return;
     }
-    const user = (try db.findUserByUsername(conn, res.arena, username)) orelse {
-        res.status = 404;
-        res.body = "user not found";
-        return;
+    const user_id = if (user_id_str.len > 0)
+        std.fmt.parseInt(i64, user_id_str, 10) catch {
+            res.status = 400;
+            res.body = "invalid user id";
+            return;
+        }
+    else blk: {
+        if (username.len == 0) {
+            res.status = 400;
+            res.body = "user required";
+            return;
+        }
+        const user = (try db.findUserByUsername(conn, res.arena, username)) orelse {
+            res.status = 404;
+            res.body = "user not found";
+            return;
+        };
+        break :blk user.id;
     };
-    db.addGroupMember(conn, group_id, user.id) catch |err| {
+    db.addGroupMember(conn, group_id, user_id) catch |err| {
         if (err == error.ConstraintPrimaryKey or err == error.ConstraintUnique) {
             res.status = 302;
             res.header("Location", "/admin");

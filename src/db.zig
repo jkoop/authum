@@ -562,6 +562,40 @@ pub fn moveAclRule(conn: zqlite.Conn, id: i64, direction: AclMoveDir) !void {
     try conn.exec("update acl_rules set pos = ?1 where id = ?2", .{ pos, nid });
 }
 
+/// Move a rule to the given 1-based position in ACL order.
+pub fn moveAclRuleToPos(conn: zqlite.Conn, id: i64, pos_1based: i64) !void {
+    if (pos_1based < 1) return;
+    const cur = (try conn.row("select pos from acl_rules where id = ?1", .{id})) orelse return;
+    defer cur.deinit();
+    const current_pos = cur.int(0);
+
+    const count_row = (try conn.row("select count(*) from acl_rules", .{})) orelse return;
+    defer count_row.deinit();
+    const total = count_row.int(0);
+    if (total <= 1) return;
+
+    var target_pos = pos_1based - 1;
+    if (target_pos < 0) target_pos = 0;
+    if (target_pos >= total) target_pos = total - 1;
+    if (target_pos == current_pos) return;
+
+    try conn.transaction();
+    errdefer conn.rollback();
+    if (target_pos < current_pos) {
+        try conn.exec(
+            "update acl_rules set pos = pos + 1 where pos >= ?1 and pos < ?2",
+            .{ target_pos, current_pos },
+        );
+    } else {
+        try conn.exec(
+            "update acl_rules set pos = pos - 1 where pos > ?1 and pos <= ?2",
+            .{ current_pos, target_pos },
+        );
+    }
+    try conn.exec("update acl_rules set pos = ?1 where id = ?2", .{ target_pos, id });
+    try conn.commit();
+}
+
 pub fn createUser(
     conn: zqlite.Conn,
     allocator: std.mem.Allocator,
