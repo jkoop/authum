@@ -40,7 +40,6 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const site = (try app.sites.byHost(app.io, arena, host)) orelse {
         return respondForbidden(app, req, res, arena, browser, .{
             .reason = "unknown site",
-            .hint = "This host is not in the sites registry. Add it under Admin → Sites (hostname only, no scheme) and ensure Traefik forwards the correct X-Forwarded-Host.",
             .host = host,
             .path = path,
             .method = method,
@@ -59,7 +58,6 @@ pub fn handle(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     if (decision.effect == .deny) {
         return respondForbidden(app, req, res, arena, browser, .{
             .reason = "forbidden",
-            .hint = "You are authenticated, but ACL denied this request. Check site id, path regex, method, and user/group columns in the ACL.",
             .host = host,
             .path = path,
             .method = method,
@@ -129,7 +127,6 @@ fn resolveUser(
     const site = (try app.sites.byHost(app.io, arena, host)) orelse {
         try respondForbidden(app, req, res, arena, true, .{
             .reason = "unknown site",
-            .hint = "This host is not in the sites registry. Add it under Admin → Sites (hostname only, no scheme) and ensure Traefik forwards the correct X-Forwarded-Host.",
             .host = host,
             .path = parsed.path,
             .method = method,
@@ -153,7 +150,6 @@ fn resolveUser(
 
 const ForbiddenCtx = struct {
     reason: []const u8,
-    hint: []const u8,
     host: []const u8,
     path: []const u8,
     method: []const u8,
@@ -179,24 +175,14 @@ fn respondForbidden(
     }
 
     const user_name = if (ctx.user) |u| u.username else "—";
-    const user_label = if (ctx.user) |u|
-        try std.fmt.allocPrint(arena, "{d}", .{u.user_id})
-    else
-        "—";
     res.content_type = .HTML;
     res.body = try app.templates.renderForbidden(arena, .{
         .reason = ctx.reason,
-        .hint = ctx.hint,
-        .fwd_host = req.header("x-forwarded-host") orelse "(missing)",
         .host = ctx.host,
-        .fwd_uri = req.header("x-forwarded-uri") orelse "(missing)",
         .path = ctx.path,
         .method = ctx.method,
-        .proto = req.header("x-forwarded-proto") orelse "(missing)",
         .site_name = ctx.site_name,
-        .site_id = ctx.site_id,
         .user_name = user_name,
-        .user_label = user_label,
         .admin_href = try std.fmt.allocPrint(
             arena,
             "{s}://{s}/admin",
